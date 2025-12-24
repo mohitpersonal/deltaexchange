@@ -1,9 +1,18 @@
 from flask import Flask
+from services.OpenOrders import open_orders_bp
+from services.FetchWalletBalance import wallet_balances_bp
+from services.ClientDetails import clients_bp
+from flask_cors import CORS
+
 app = Flask(__name__)
 
-@app.route("/")
-def hello():
-    return "Hello, Flask!"
+# Enable CORS for all routes
+CORS(app, supports_credentials=True, resources={r"/*": {"origins": "http://localhost:3000"}})
+
+app.register_blueprint(open_orders_bp)
+app.register_blueprint(wallet_balances_bp)
+app.register_blueprint(clients_bp)
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, host="0.0.0.0", port=5000)
+ 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Typography,
@@ -7,6 +7,8 @@ import {
   Avatar,
   Paper,
   Button,
+  Snackbar, 
+  Alert,
   Checkbox,
   Chip,
   TextField,
@@ -19,43 +21,205 @@ import {
   TableSortLabel,
   TablePagination,
   MenuItem,
-  Dialog, DialogTitle, DialogContent, DialogActions
+  Dialog,DialogTitle,DialogContent,DialogActions
 } from "@mui/material";
-import MenuIcon from "@mui/icons-material/Menu";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import Sidebar from './Sidebar';
 import { useNavigate } from "react-router-dom";
+import { BASE_URL } from '../config';
+import axios from 'axios';
 
 const drawerWidth = 240;
 
-const initialClients = [
-  { name: "Alice Johnson", email: "alice@example.com", group_name: "Active", margin_mode: "isolated", wallet_balance: "1212121", m2m_daily: "23432" },
-  { name: "Bob Smith", email: "bob@example.com", group_name: "Inactive", margin_mode: "isolated", wallet_balance: "3432342", m2m_daily: "12311" },
-  { name: "Charlie Lee", email: "charlie@example.com", group_name: "Active", margin_mode: "profile", wallet_balance: "12312312", m2m_daily: "12322" },
-];
+// ---------------- Function 2: Modal Form ----------------
+function ClientForm({ open, onClose, onSave, initialValues }) {
+  const [groups, setGroups] = useState([]); 
+  const [marginModes, setMarginModes] = useState([]);
+  const [formData, setFormData] = useState(
+    initialValues || {
+          name: "",
+          number: "",
+          email: "",
+          group: "",
+          margin: "",
+          apiKey: "",
+          apiSecret: ""
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  useEffect(() => { if (open) { 
+      axios.get(`${BASE_URL}/clients/groups`).then(res => setGroups(res.data)); 
+      axios.get(`${BASE_URL}/clients/margin_mode`).then(res => setMarginModes(res.data)); } }, 
+    [open]);
+  
+  useEffect(() => { if (initialValues) { 
+      setFormData(initialValues); } }, 
+    [initialValues]);
+
+   const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post(`${BASE_URL}/clients/add_client`, formData);
+      onSave(formData);
+      onClose();
+      setFormData({
+        name: "",
+        number: "",
+        email: "",
+        group: "",
+        margin: "",
+        apiKey: "",
+        apiSecret: ""
+      });
+    } catch (error) {
+      console.error("Error adding client:", error);
+      alert("Failed to add client.");
+    }
+  };
+
+    return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullWidth
+      maxWidth="md"   // modal width (sm, md, lg, xl)
+    >
+      <DialogTitle>Add Client</DialogTitle>
+
+      <DialogContent dividers>
+        <TextField
+          label="Name"
+          name="name"
+          value={formData.name}
+          onChange={handleChange}
+          fullWidth
+          margin="normal"
+          variant="outlined"
+        />
+        <TextField
+          label="Mobile No."
+          name="number"
+          value={formData.number}
+          onChange={handleChange}
+          fullWidth
+          margin="normal"
+          variant="outlined"
+        />
+        <TextField
+          label="Email ID"
+          name="email"
+          value={formData.email}
+          onChange={handleChange}
+          fullWidth
+          margin="normal"
+          variant="outlined"
+        />
+        <TextField
+          label="API Key"
+          name="apiKey"
+          value={formData.apiKey}
+          onChange={handleChange}
+          fullWidth
+          margin="normal"
+          variant="outlined"
+        />
+        <TextField
+          label="API Secret"
+          name="apiSecret"
+          value={formData.apiSecret}
+          onChange={handleChange}
+          fullWidth
+          margin="normal"
+          variant="outlined"
+        />
+        <TextField
+          select
+          label="Group"
+          name="group"
+          value={formData.group}
+          onChange={handleChange}
+          fullWidth
+          margin="normal"
+          variant="outlined"
+        >
+          {groups.map((g) => (
+            <MenuItem key={g.group_id} value={g.group_id}>
+              {g.group_name}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          select
+          label="Margin Mode"
+          name="margin"
+          value={formData.margin}
+          onChange={handleChange}
+          fullWidth
+          margin="normal"
+          variant="outlined"
+        >
+          {marginModes.map((m) => (
+            <MenuItem key={m.margin_mode_id} value={m.margin_mode_id}>
+              {m.margin_mode}
+            </MenuItem>
+          ))}
+        </TextField>
+      </DialogContent>
+
+      <DialogActions>
+        <Button variant="outlined" color="secondary" onClick={onClose}>
+          Close
+        </Button>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleSubmit}
+          disabled={!formData.name || !formData.email}
+        >
+          Save
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );    
+}
 
 function Clients() {
-  // const [openSidebar, setOpenSidebar] = useState(true);
-  const [open, setOpen] = useState(false);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [selected, setSelected] = useState([]);
   const [order, setOrder] = useState("asc");
   const [orderBy, setOrderBy] = useState("name");
+  const [editingClient, setEditingClient] = useState(null);
+
   // Search + filters
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
+  const [groupFilter, setGroupFilter] = useState("");
+  const [marginmodeFilter, setMarginModeFilter] = useState("");
 
   const navigate = useNavigate();
-  const [newClient, setNewClient] = useState({
-    name: "",
-    number: "",
-    email: "",
-    group: "",
-    margin: "",
-    apiKey: "",
-  });
+
+  const [clients, setClients] = useState([]);
+  const [openForm, setOpenForm] = useState(false);
+  
+  useEffect(() => { 
+    axios.get(`${BASE_URL}/clients`) 
+        .then((res) => { setClients(res.data); }) 
+        .catch((err) => { console.error("Error fetching clients:", err); });
+      }, 
+    []);
+
+  
+  const [groups, setGroups] = useState([]); 
+  const [marginModes, setMarginModes] = useState([]);
+
+  useEffect(() => {
+      axios.get(`${BASE_URL}/clients/groups`).then(res => setGroups(res.data)); 
+      axios.get(`${BASE_URL}/clients/margin_mode`).then(res => setMarginModes(res.data)); }, 
+    []);
+
   // Sorting
   const handleRequestSort = (property) => {
     const isAsc = orderBy === property && order === "asc";
@@ -63,14 +227,16 @@ function Clients() {
     setOrderBy(property);
   };
 
-  // Filter logicfilteredClients
-  const filteredClients = initialClients.filter((c) => {
+  // Filter logic
+  const filteredClients = clients.filter((c) => {
     const matchesSearch =
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.email.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter ? c.status === statusFilter : true;
-    const matchesRole = roleFilter ? c.role === roleFilter : true;
-    return matchesSearch && matchesStatus && matchesRole;
+
+    const matchesGroup = groupFilter ? c.group_name === groupFilter : true;
+    const matchesMarginMode = marginmodeFilter ? c.margin_mode === marginmodeFilter : true;
+
+    return matchesSearch && matchesGroup && matchesMarginMode;
   });
 
   // Sorting logic
@@ -108,35 +274,101 @@ function Clients() {
   };
 
   // Modal handlers
-  const handleOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setNewClient((prev) => ({ ...prev, [name]: value }));
+  const handleOpenForm = (clients = null) => { 
+    setEditingClient(clients); 
+    setOpenForm(true); 
   };
 
-  const handleSave = () => {
-    console.log("New Client:", newClient);
-    // Here you can push to clientsData or call API
-    handleClose();
+  const handleCloseForm = () => { 
+    setOpenForm(false); 
+    setEditingClient(null); 
+  };
+
+  const handleSave = (updatedClient) => { 
+    if (editingClient) { 
+      // Edit mode: update existing client 
+      setClients((prev) => 
+        prev.map((c) => (c.id === editingClient.id ? { ...c, ...updatedClient } : c)) 
+    ); 
+  } else { 
+    // Add mode: create new client 
+      setClients((prev) => 
+        [...prev, { id: Date.now(), ...updatedClient }]); 
+    } 
+  };
+
+  // const handleFetchWalletBalances = () => {
+  //   axios.get(`${BASE_URL}/wallet-balances`)
+  //     .then((res) => {
+  //       // res.data will be the updated balances or error info
+  //       console.log("Wallet balances:", res.data);
+
+  //       // Update clients state with new balances
+  //       setClients((prevClients) =>
+  //         prevClients.map((clients) => {
+  //           const updated = res.data.find((c) => c.client_id === clients.id || c.client_name === clients.name);
+  //           return updated && updated.wallet_balance
+  //             ? { ...clients, wallet_balance: updated.wallet_balance }
+  //             : clients;
+  //         })
+  //       );
+  //     })
+  //     .catch((err) => {
+  //       console.error("Error fetching wallet balances:", err);
+  //     });
+  // };
+  const [errorAlert, setErrorAlert] = useState({ open: false, message: "" });
+
+  const handleFetchWalletBalances = () => {
+    axios.get(`${BASE_URL}/wallet-balances`)
+      .then((res) => {
+        const { results, errors } = res.data;
+
+        // Update balances in table
+        setClients((prevClients) =>
+          prevClients.map((clients) => {
+            const updated = results.find((c) => c.client_name === clients.name);
+            return updated
+              ? {
+                  ...clients,
+                  wallet_balance_inr: updated.wallet_balance_inr,
+                  wallet_balance_usd: updated.wallet_balance_usd,
+                }
+              : clients;
+          })
+        );
+
+        // Handle failed balances here
+        if (errors && errors.length > 0) {
+          const failedNames = errors.map(e => e.client_name).join(", ");
+          setErrorAlert({
+            open: true,
+            message: `Error fetching wallet balances for: ${failedNames}`
+          });
+        }
+      })
+      .catch((err) => {
+        // Only runs if the API call itself fails (server/network issue)
+        setErrorAlert({
+          open: true,
+          message: "API call failed: " + err.message
+        });
+      });
   };
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
       <Sidebar />
-      {/* Main Content */}
       <Box component="main" sx={{ flexGrow: 1 }}>
-        {/* Light blue header */}
+        {/* Header */}
         <Box
           sx={{
             height: "25vh",
-            backgroundColor: "#0e68a475", // light blue
+            backgroundColor: "#0e68a475",
             color: "white",
             p: 3,
           }}
         >
-          {/* Overlay content */}
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Breadcrumbs aria-label="breadcrumb" sx={{ color: "white" }}>
               <Link underline="hover" color="inherit" href="/">
@@ -152,17 +384,51 @@ function Clients() {
 
           {/* Action Buttons */}
           <Box sx={{ display: "flex", gap: 2, mt: 3 }}>
-            <Button variant="contained" sx={{ bgcolor: "#003366", color: "white" }} onClick={handleOpen} >Add Client</Button>
-            <Button variant="contained" sx={{ bgcolor: "#006699", color: "white" }} onClick={() => navigate("/place-order")}>Place Order</Button>
-            <Button variant="contained" sx={{ bgcolor: "#0099cc", color: "white" }}>Fetch Wallet Balance</Button>
-            <Button variant="contained" sx={{ bgcolor: "#cc6600", color: "white" }}>Fetch Positions</Button>
-            {/* <Button variant="contained" sx={{ bgcolor: "#990000", color: "white" }}>Close All Positions</Button> */}
+            <Button
+              variant="contained"
+              sx={{ bgcolor: "#003366", color: "white" }}
+              onClick={handleOpenForm}
+            >
+              Add Client
+            </Button>
+            <ClientForm open={openForm} onClose={handleCloseForm} onSave={handleSave} />
+
+            <Button
+              variant="contained"
+              sx={{ bgcolor: "#006699", color: "white" }}
+              onClick={() => navigate("/place-order")}
+            >
+              Place Order
+            </Button>
+
+            <Button variant="contained" sx={{ bgcolor: "#0099cc", color: "white" }} onClick={handleFetchWalletBalances}>
+              Fetch Wallet Balance
+            </Button>
+            
+            {/* Snackbar Alert */}
+            <Snackbar
+              open={errorAlert.open}
+              autoHideDuration={4000}   // disappears after 4 seconds
+              onClose={() => setErrorAlert({ ...errorAlert, open: false })}
+              anchorOrigin={{ vertical: "top", horizontal: "center" }}
+            >
+              <Alert
+                onClose={() => setErrorAlert({ ...errorAlert, open: false })}
+                severity="error"
+                sx={{ width: "100%" }}
+              >
+                {errorAlert.message}
+              </Alert>
+            </Snackbar>
+
+            <Button variant="contained" sx={{ bgcolor: "#cc6600", color: "white" }}>
+              Fetch Positions
+            </Button>
           </Box>
         </Box>
 
         {/* Content area */}
         <Box sx={{ p: 4 }}>
-          {/* Table */}
           <Paper>
             {/* Search + Filters */}
             <Box display="flex" gap={2} p={2}>
@@ -179,25 +445,30 @@ function Clients() {
                 select
                 variant="outlined"
                 size="small"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                value={groupFilter}
+                onChange={(e) => setGroupFilter(e.target.value)}
                 sx={{ width: 150 }}
               >
-                <MenuItem value="Active">Active</MenuItem>
-                <MenuItem value="Inactive">Inactive</MenuItem>
-                <MenuItem value="Pending">Pending</MenuItem>
+                {groups.map((g) => (
+                  <MenuItem key={g.group_id} value={g.group_name}>
+                    {g.group_name}
+                  </MenuItem>
+                ))}
               </TextField>
               <TextField
                 label="Margin Mode"
                 select
                 variant="outlined"
                 size="small"
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
+                value={marginmodeFilter}
+                onChange={(e) => setMarginModeFilter(e.target.value)}
                 sx={{ width: 150 }}
               >
-                <MenuItem value="1">Isolated</MenuItem>
-                <MenuItem value="2">Profile</MenuItem>
+                {marginModes.map((m) => (
+                  <MenuItem key={m.margin_mode_id} value={m.margin_mode}>
+                    {m.margin_mode}
+                  </MenuItem>
+                ))}
               </TextField>
             </Box>
 
@@ -213,7 +484,7 @@ function Clients() {
                         onChange={handleSelectAllClick}
                       />
                     </TableCell>
-                    {[ "name", "email", "group", "margin mode", "wallet balance", "m2m daily"].map((col) => (
+                    {["name", "email", "group", "margin mode", "wallet balance", "m2m daily"].map((col) => (
                       <TableCell key={col}>
                         <TableSortLabel
                           active={orderBy === col}
@@ -248,7 +519,7 @@ function Clients() {
                               cursor: "pointer",
                             }}
                             onClick={(e) => {
-                              e.preventDefault(); // prevent default navigation
+                              e.preventDefault();
                               navigate("/client-details");
                             }}
                           >
@@ -265,7 +536,7 @@ function Clients() {
                             variant="contained"
                             size="small"
                             sx={{ bgcolor: "#003366", color: "white" }}
-                            onClick={handleOpen}
+                            onClick={() => handleOpenForm(clients)}
                           >
                             Edit
                           </Button>
@@ -289,82 +560,13 @@ function Clients() {
               }}
               rowsPerPageOptions={[3, 5, 10]}
             />
-
-
-            {/* Modal Dialog */}
-            <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
-              <DialogTitle>Add New Client</DialogTitle>
-              <DialogContent dividers>
-                <Box display="flex" flexDirection="column" gap={2}>
-                  <TextField
-                    label="Name"
-                    name="name"
-                    value={newClient.name}
-                    onChange={handleChange}
-                    fullWidth
-                  />
-                  <TextField
-                    label="No."
-                    name="number"
-                    type="number"
-                    value={newClient.number}
-                    onChange={handleChange}
-                    fullWidth
-                  />
-                  <TextField
-                    label="Email ID"
-                    name="email"
-                    type="email"
-                    value={newClient.email}
-                    onChange={handleChange}
-                    fullWidth
-                  />
-                  <TextField
-                    label="Group Name"
-                    name="group"
-                    select
-                    value={newClient.group}
-                    onChange={handleChange}
-                    fullWidth
-                  >
-                    <MenuItem value="Admin">Admin</MenuItem>
-                    <MenuItem value="User">User</MenuItem>
-                    <MenuItem value="Manager">Manager</MenuItem>
-                  </TextField>
-                  <TextField
-                    label="Margin"
-                    name="margin"
-                    select
-                    value={newClient.margin}
-                    onChange={handleChange}
-                    fullWidth
-                  >
-                    <MenuItem value="Low">Low</MenuItem>
-                    <MenuItem value="Medium">Medium</MenuItem>
-                    <MenuItem value="High">High</MenuItem>
-                  </TextField>
-                  <TextField
-                    label="API Key"
-                    name="apiKey"
-                    value={newClient.apiKey}
-                    onChange={handleChange}
-                    fullWidth
-                  />
-                </Box>
-              </DialogContent>
-              <DialogActions>
-                <Button onClick={handleClose}>Cancel</Button>
-                <Button variant="contained" color="primary" onClick={handleSave}>
-                  Save
-                </Button>
-              </DialogActions>
-            </Dialog>
           </Paper>
         </Box>
-
       </Box>
     </Box>
   );
 }
+
+
 
 export default Clients;

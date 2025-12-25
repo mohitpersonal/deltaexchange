@@ -1,11 +1,11 @@
 from flask import Blueprint, request, jsonify
 from services.db_connect import get_db_connection
-from flask_cors import CORS
+#from flask_cors import CORS
 
 clients_bp = Blueprint("clients", __name__)
 
 # Allow all origins (for development)
-CORS(clients_bp)
+#CORS(clients_bp)
 
 #CORS(clients_bp, resources={r"/*": {"origins": "http://localhost:3000"}})
 

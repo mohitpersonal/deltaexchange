@@ -297,27 +297,8 @@ function Clients() {
     } 
   };
 
-  // const handleFetchWalletBalances = () => {
-  //   axios.get(`${BASE_URL}/wallet-balances`)
-  //     .then((res) => {
-  //       // res.data will be the updated balances or error info
-  //       console.log("Wallet balances:", res.data);
-
-  //       // Update clients state with new balances
-  //       setClients((prevClients) =>
-  //         prevClients.map((clients) => {
-  //           const updated = res.data.find((c) => c.client_id === clients.id || c.client_name === clients.name);
-  //           return updated && updated.wallet_balance
-  //             ? { ...clients, wallet_balance: updated.wallet_balance }
-  //             : clients;
-  //         })
-  //       );
-  //     })
-  //     .catch((err) => {
-  //       console.error("Error fetching wallet balances:", err);
-  //     });
-  // };
-  const [errorAlert, setErrorAlert] = useState({ open: false, message: "" });
+  const [errorAlert, setErrorAlert] = useState({ open: false, message: "" }); // For Error msg notifications
+  const [successAlert, setSuccessAlert] = useState({ open: false, message: "" }); // For Success msg notifications
 
   const handleFetchWalletBalances = () => {
     axios.get(`${BASE_URL}/wallet-balances`)
@@ -354,6 +335,26 @@ function Clients() {
           message: "API call failed: " + err.message
         });
       });
+  };
+  
+
+  const handleProductLists = async () => {
+    try {
+      await axios.get(`${BASE_URL}/product_lists`);
+      // Success message
+      setSuccessAlert({
+          open: true,
+          message: "Products list updated successfully!" 
+      });
+      setTimeout(() => setSuccessAlert({ open: false, message: "" }), 4000);
+    } catch (err) {
+      // Error message
+      setErrorAlert({ 
+          open: true,
+          message: "API call failed: " + err.message 
+        });
+      setTimeout(() => setErrorAlert({ open: false, message: "" }), 4000);
+    }
   };
 
   return (
@@ -424,6 +425,34 @@ function Clients() {
             <Button variant="contained" sx={{ bgcolor: "#cc6600", color: "white" }}>
               Fetch Positions
             </Button>
+
+            <Button variant="contained" sx={{ bgcolor: "#7000cccd", color: "white" }} onClick={handleProductLists}>
+              Update Product Lists
+            </Button>
+            
+             {/* Success Snackbar */}
+            <Snackbar open={successAlert.open} autoHideDuration={4000} onClose={() => setSuccessAlert({ ...successAlert, open: false })}
+              anchorOrigin={{ vertical: "top", horizontal: "center" }}
+            >
+              <Alert onClose={() => setSuccessAlert({ ...successAlert, open: false })}
+                severity="success" // green
+                sx={{ width: "100%" }}
+              >
+                {successAlert.message}
+              </Alert>
+            </Snackbar>
+
+            {/* Error Snackbar */}
+            <Snackbar open={errorAlert.open} autoHideDuration={4000} onClose={() => setErrorAlert({ ...errorAlert, open: false })}
+              anchorOrigin={{ vertical: "top", horizontal: "center" }}
+            >
+              <Alert onClose={() => setErrorAlert({ ...errorAlert, open: false })}
+                severity="error" // red
+                sx={{ width: "100%" }}
+              >
+                {errorAlert.message}
+              </Alert>
+            </Snackbar>
           </Box>
         </Box>
 

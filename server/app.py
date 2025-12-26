@@ -5,6 +5,7 @@ from services.FetchWalletBalance import wallet_balances_bp
 from services.ClientDetails import clients_bp
 from services.ProductLists import productlists_bp
 from services.PositionOrders import positionorders_bp
+from services.OrderHistory import orders_history_bp
 
 from flask_cors import CORS
 
@@ -18,6 +19,7 @@ app.register_blueprint(wallet_balances_bp)
 app.register_blueprint(clients_bp)
 app.register_blueprint(productlists_bp)
 app.register_blueprint(positionorders_bp)
+app.register_blueprint(orders_history_bp)
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)

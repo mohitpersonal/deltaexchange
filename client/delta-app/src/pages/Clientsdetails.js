@@ -33,7 +33,7 @@ const sampleData = [
 
 function OrdersPositionTable({ data }) {
   const [page, setPage] = useState(0);
-  const [rowsPerPage] = useState(5);
+  const [rowsPerPage] = useState(10);
   const [selected, setSelected] = useState([]);
   const [order, setOrder] = useState("asc");
   const [orderBy, setOrderBy] = useState("product_symbol");
@@ -117,6 +117,170 @@ function OrdersPositionTable({ data }) {
   );
 }
 
+function OrdersHistoryTable({ data }) {
+  const [page, setPage] = useState(0);
+  const [rowsPerPage] = useState(10);
+  const [order, setOrder] = useState("asc");
+  const [orderBy, setOrderBy] = useState("product_symbol");
+
+  const handleRequestSort = (property) => {
+    const isAsc = orderBy === property && order === "asc";
+    setOrder(isAsc ? "desc" : "asc");
+    setOrderBy(property);
+  };
+
+  const sortedOrders = Array.isArray(data)
+    ? [...data].sort((a, b) => {
+        if (a[orderBy] < b[orderBy]) return order === "asc" ? -1 : 1;
+        if (a[orderBy] > b[orderBy]) return order === "asc" ? 1 : -1;
+        return 0;
+      })
+    : [];
+
+  const columns = [
+    "product_symbol",
+    "side",
+    "size",
+    "order_type",
+    "state",
+    "average_fill_price",
+    "avg_exit_price",
+    "entry_price",
+    "limit_price",
+    "cashflow",
+    "commission",
+    "paid_commission",
+    "pnl",
+    "margin_mode",
+    "bracket_order",
+    "bracket_stop_loss_limit_price",
+    "bracket_stop_loss_price",
+    "bracket_take_profit_limit_price",
+    "bracket_take_profit_price",
+    "cancellation_reason",
+    "created_at",
+    "updated_at"
+  ];
+
+  // helper for state colors
+  const getStateColor = (state) => {
+    switch (state) {
+      case "closed":
+        return "blue";
+      case "cancelled":
+        return "orange";
+      case "open":
+        return "green";
+      default:
+        return "inherit";
+    }
+  };
+
+  return (
+    <TableContainer component={Paper} sx={{ mb: 2 }}>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            {columns.map((col) => (
+              <TableCell key={col}>
+                <TableSortLabel
+                  active={orderBy === col}
+                  direction={orderBy === col ? order : "asc"}
+                  onClick={() => handleRequestSort(col)}
+                >
+                  {col.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                </TableSortLabel>
+              </TableCell>
+            ))}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {sortedOrders
+            .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+            .map((row) => (
+              <TableRow key={row.id}>
+                {columns.map((col) => {
+                  let value = row[col];
+                  if (value === null || value === undefined) value = "";
+
+                  // special styling for side
+                  if (col === "side") {
+                    return (
+                      <TableCell key={col}>
+                        <Box
+                          sx={{
+                            display: "inline-block",
+                            px: 2,
+                            py: 0.5,
+                            borderRadius: "16px",
+                            bgcolor: value === "buy" ? "green" : "red",
+                            color: "white",
+                            fontWeight: "bold",
+                            textAlign: "center"
+                          }}
+                        >
+                          {value}
+                        </Box>
+                      </TableCell>
+                    );
+                  }
+
+                  // special styling for state
+                  if (col === "state") {
+                    let bg;
+                    switch (value) {
+                      case "closed":
+                        bg = "blue";
+                        break;
+                      case "cancelled":
+                        bg = "orange";
+                        break;
+                      case "open":
+                        bg = "green";
+                        break;
+                      default:
+                        bg = "grey";
+                    }
+                    return (
+                      <TableCell key={col}>
+                        <Box
+                          sx={{
+                            display: "inline-block",
+                            px: 2,
+                            py: 0.5,
+                            borderRadius: "16px",
+                            bgcolor: bg,
+                            color: "white",
+                            fontWeight: "bold",
+                            textAlign: "center"
+                          }}
+                        >
+                          {value}
+                        </Box>
+                      </TableCell>
+                    );
+                  }
+
+                  // format dates
+                  if (col === "created_at" || col === "updated_at") {
+                    return (
+                      <TableCell key={col}>
+                        {value ? new Date(value).toLocaleString() : ""}
+                      </TableCell>
+                    );
+                  }
+
+                  return <TableCell key={col}>{value.toString()}</TableCell>;
+                })}
+              </TableRow>
+            ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
+
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
 
@@ -139,10 +303,14 @@ function ClientDetails() {
   const navigate = useNavigate();
 
   const [positions, setPositions] = useState([]);
-  const [activeTab, setActiveTab] = useState("positions"); // default tab
+    // Dummy UPNL calculation (sum of amounts)
+  const totalUPNL = sampleData.reduce((acc, curr) => acc + curr.amount, 0);
 
+  const [tabIndex, setTabIndex] = useState(0);
+  const [ordersHistory, setOrdersHistory] = useState([]);
+  
   useEffect(() => {
-    if (activeTab === "positions") {
+    if (tabIndex === 0) {
       fetch(`${BASE_URL}/positions/${client_id}`)
         .then((res) => res.json())
         .then((data) => {
@@ -150,14 +318,28 @@ function ClientDetails() {
         })
         .catch((err) => console.error("Error fetching positions:", err));
     }
-  }, [client_id, activeTab]);
+  }, [client_id,tabIndex]);
 
-  const handleChange = (event, newValue) => {
-    setValue(newValue);
+  // const handleChange = (event, newValue) => {
+  //   setValue(newValue);
+  // };
+
+  const handleTabChange = (event, newValue) => {
+    setTabIndex(newValue);
   };
 
-  // Dummy UPNL calculation (sum of amounts)
-  const totalUPNL = sampleData.reduce((acc, curr) => acc + curr.amount, 0);
+  // Fetch order history when tabIndex changes to 1 (second tab)
+  useEffect(() => {
+    if (tabIndex === 2) {
+      fetch(`${BASE_URL}/order-history/${client_id}`)
+        .then((res) => res.json())
+        .then((json) => {
+          // json.orders is the array you want
+          setOrdersHistory(json.orders || []);
+        })
+        .catch((err) => console.error("Error fetching order history:", err));
+    }
+  }, [client_id, tabIndex]);
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
@@ -193,27 +375,25 @@ function ClientDetails() {
 
         {/* Tabs */}
         <Paper sx={{ borderBottom: 1, borderColor: "divider" }}>
-          <Tabs
-            value={value}
-            onChange={handleChange}
+           <Tabs value={tabIndex} onChange={(event, newValue) => setTabIndex(newValue)}
             aria-label="client details tabs"
             indicatorColor="primary"
             textColor="primary"
           >
-            <Tab label="Order Position" onClick={() => setActiveTab("positions")} />
+            <Tab label="Order Position" />
             <Tab label="Open Order" />
             <Tab label="Order History" />
           </Tabs>
         </Paper>
 
         {/* Tab Panels */}
-        <TabPanel value={value} index={0}>
+        <TabPanel value={tabIndex} index={0}>
           {/* Action Buttons + UPNL */}
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
             <Box sx={{ display: "flex", gap: 2 }}>
-              <Button variant="contained" sx={{ bgcolor: "#006699", color: "white" }}>
+              {/* <Button variant="contained" sx={{ bgcolor: "#006699", color: "white" }}>
                 Fetch Positions
-              </Button>
+              </Button> */}
               <Button variant="contained" sx={{ bgcolor: "#cc6600", color: "white" }}>
                 Close All Positions
               </Button>
@@ -235,15 +415,15 @@ function ClientDetails() {
           </Typography>
         </TabPanel>
 
-        <TabPanel value={value} index={1}>
+        <TabPanel value={tabIndex} index={1}>
           <OrdersPositionTable data={sampleData} />
           <Typography variant="body1">
             This section lists all open orders for the client.
           </Typography>
         </TabPanel>
 
-        <TabPanel value={value} index={2}>
-          <OrdersPositionTable data={sampleData} />
+        <TabPanel value={tabIndex} index={2}>
+          <OrdersHistoryTable data={ordersHistory} />
           <Typography variant="body1">
             This section displays the client's past order history.
           </Typography>

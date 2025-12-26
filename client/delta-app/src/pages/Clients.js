@@ -532,16 +532,16 @@ function Clients() {
                   {sortedClients
                     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                     .map((client) => (
-                      <TableRow key={client.id} selected={isSelected(client.id)}>
+                      <TableRow key={client.client_id} selected={isSelected(client.client_id)}>
                         <TableCell padding="checkbox">
                           <Checkbox
-                            checked={isSelected(client.id)}
-                            onChange={() => handleClick(client.id)}
+                            checked={isSelected(client.client_id)}
+                            onChange={() => handleClick(client.client_id)}
                           />
                         </TableCell>
                         <TableCell>
                           <Link
-                            to="/client-details"
+                            to={`/clients/client-details/${client.client_id}`}   // ✅ dynamic path
                             style={{
                               color: "blue",
                               textDecoration: "none",
@@ -549,12 +549,12 @@ function Clients() {
                             }}
                             onClick={(e) => {
                               e.preventDefault();
-                              navigate("/client-details");
+                              navigate(`/clients/client-details/${client.client_id}`); // ✅ navigate with client_id
                             }}
                           >
                             {client.name}
                           </Link>
-                        </TableCell>
+                          </TableCell>
                         <TableCell>{client.email}</TableCell>
                         <TableCell>{client.group_name}</TableCell>
                         <TableCell>{client.margin_mode}</TableCell>

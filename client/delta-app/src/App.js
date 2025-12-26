@@ -14,11 +14,15 @@ function App() {
       <Routes>  
         {/* Redirect root (/) to /login */}
         <Route path="/" element={<Navigate to="/login" />} />
-        {/* Define the login route */}
+        
+        {/* Define routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/clients" element={<Clients />} />
         <Route path="/place-order" element={<Placeorder />} />
-        <Route path="/client-details" element={<Clientsdetails />} />
+
+        {/* Dynamic route with client_id param */}
+        <Route path="/clients/client-details/:client_id" element={<Clientsdetails />} />
+
         <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
     </BrowserRouter>

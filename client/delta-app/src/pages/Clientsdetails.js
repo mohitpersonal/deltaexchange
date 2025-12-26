@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import {
   Box,
   Tabs,
@@ -17,29 +18,26 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TableSortLabel,
-  TablePagination
+  TableSortLabel
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import Sidebar from './Sidebar';
+import { BASE_URL } from '../config';
 
 // Dummy data for demonstration
 const sampleData = [
-  { id: 1, name: "Order A", status: "Open", amount: "$1200" },
-  { id: 2, name: "Order B", status: "Closed", amount: "$800" },
-  { id: 3, name: "Order C", status: "Pending", amount: "$500" },
+  { id: 1, name: "Order A", status: "Open", amount: 1200 },
+  { id: 2, name: "Order B", status: "Closed", amount: -800 },
+  { id: 3, name: "Order C", status: "Pending", amount: 500 },
 ];
 
-// Reusable Table Component
-function OrdersTable({ data }) {
+function OrdersPositionTable({ data }) {
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage] = useState(5);
   const [selected, setSelected] = useState([]);
   const [order, setOrder] = useState("asc");
-  const [orderBy, setOrderBy] = useState("name");
-  // Search + filters
-  const [search, setSearch] = useState("");
-  const navigate = useNavigate();
+  const [orderBy, setOrderBy] = useState("product_symbol");
+
   // Sorting
   const handleRequestSort = (property) => {
     const isAsc = orderBy === property && order === "asc";
@@ -48,7 +46,7 @@ function OrdersTable({ data }) {
   };
 
   // Sorting logic
-  const sortedClients = [...sampleData].sort((a, b) => {
+  const sortedPositions = [...data].sort((a, b) => {
     if (a[orderBy] < b[orderBy]) return order === "asc" ? -1 : 1;
     if (a[orderBy] > b[orderBy]) return order === "asc" ? 1 : -1;
     return 0;
@@ -57,7 +55,7 @@ function OrdersTable({ data }) {
   // Select all
   const handleSelectAllClick = (event) => {
     if (event.target.checked) {
-      setSelected(sortedClients.map((c) => c.id));
+      setSelected(sortedPositions.map((p) => p.product_id));
     } else {
       setSelected([]);
     }
@@ -72,15 +70,6 @@ function OrdersTable({ data }) {
 
   const isSelected = (id) => selected.includes(id);
 
-  // Status chip
-  const getStatusChip = (status) => {
-    let color = "default";
-    if (status === "Active") color = "success";
-    else if (status === "Inactive") color = "error";
-    else if (status === "Pending") color = "warning";
-    return <Chip label={status} color={color} size="small" />;
-  };
-
   return (
     <TableContainer component={Paper} sx={{ mb: 2 }}>
       <Table>
@@ -88,44 +77,43 @@ function OrdersTable({ data }) {
           <TableRow>
             <TableCell padding="checkbox">
               <Checkbox
-                indeterminate={selected.length > 0 && selected.length < sortedClients.length}
-                checked={sortedClients.length > 0 && selected.length === sortedClients.length}
+                indeterminate={selected.length > 0 && selected.length < sortedPositions.length}
+                checked={sortedPositions.length > 0 && selected.length === sortedPositions.length}
                 onChange={handleSelectAllClick}
               />
             </TableCell>
-            {["Name", "Status", "Amount"].map((col) => (
+            {["product_symbol", "entry_price", "size"].map((col) => (
               <TableCell key={col}>
                 <TableSortLabel
                   active={orderBy === col}
                   direction={orderBy === col ? order : "asc"}
                   onClick={() => handleRequestSort(col)}
                 >
-                  {col.charAt(0).toUpperCase() + col.slice(1)}
+                  {col.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                 </TableSortLabel>
               </TableCell>
             ))}
           </TableRow>
         </TableHead>
         <TableBody>
-          {sortedClients
+          {sortedPositions
             .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
             .map((row) => (
-              <TableRow key={row.id} selected={isSelected(row.id)}>
+              <TableRow key={row.product_id} selected={isSelected(row.product_id)}>
                 <TableCell padding="checkbox">
                   <Checkbox
-                    checked={isSelected(row.id)}
-                    onChange={() => handleClick(row.id)}
+                    checked={isSelected(row.product_id)}
+                    onChange={() => handleClick(row.product_id)}
                   />
                 </TableCell>
-                <TableCell>{row.name}</TableCell>
-                <TableCell>{getStatusChip(row.status)}</TableCell>
-                <TableCell>{row.amount}</TableCell>
+                <TableCell>{row.product_symbol}</TableCell>
+                <TableCell>{row.entry_price}</TableCell>
+                <TableCell>{row.size}</TableCell>
               </TableRow>
             ))}
         </TableBody>
       </Table>
     </TableContainer>
-
   );
 }
 
@@ -146,12 +134,30 @@ function TabPanel(props) {
 }
 
 function ClientDetails() {
+  const { client_id } = useParams();
   const [value, setValue] = useState(0);
   const navigate = useNavigate();
+
+  const [positions, setPositions] = useState([]);
+  const [activeTab, setActiveTab] = useState("positions"); // default tab
+
+  useEffect(() => {
+    if (activeTab === "positions") {
+      fetch(`${BASE_URL}/positions/${client_id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          setPositions(data.result || []);
+        })
+        .catch((err) => console.error("Error fetching positions:", err));
+    }
+  }, [client_id, activeTab]);
 
   const handleChange = (event, newValue) => {
     setValue(newValue);
   };
+
+  // Dummy UPNL calculation (sum of amounts)
+  const totalUPNL = sampleData.reduce((acc, curr) => acc + curr.amount, 0);
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
@@ -183,54 +189,67 @@ function ClientDetails() {
               <Typography variant="body1">Mohit (Admin)</Typography>
             </Box>
           </Box>
-
-          {/* Action Buttons */}
-          <Box sx={{ display: "flex", gap: 2, mt: 3 }}>
-            <Button variant="contained" sx={{ bgcolor: "#006699", color: "white" }} onClick={() => navigate("/place-order")}>Place Order</Button>
-            <Button variant="contained" sx={{ bgcolor: "#0099cc", color: "white" }}>Fetch Wallet Balance</Button>
-            <Button variant="contained" sx={{ bgcolor: "#cc6600", color: "white" }}>Fetch Positions</Button>
-            {/* <Button variant="contained" sx={{ bgcolor: "#990000", color: "white" }}>Close All Positions</Button> */}
-          </Box>
         </Box>
 
-      {/* Tabs */}
-      <Paper sx={{ borderBottom: 1, borderColor: "divider" }}>
-        <Tabs
-          value={value}
-          onChange={handleChange}
-          aria-label="client details tabs"
-          indicatorColor="primary"
-          textColor="primary"
-        >
-          <Tab label="Order Position" />
-          <Tab label="Open Order" />
-          <Tab label="Order History" />
-        </Tabs>
-      </Paper>
+        {/* Tabs */}
+        <Paper sx={{ borderBottom: 1, borderColor: "divider" }}>
+          <Tabs
+            value={value}
+            onChange={handleChange}
+            aria-label="client details tabs"
+            indicatorColor="primary"
+            textColor="primary"
+          >
+            <Tab label="Order Position" onClick={() => setActiveTab("positions")} />
+            <Tab label="Open Order" />
+            <Tab label="Order History" />
+          </Tabs>
+        </Paper>
 
-      {/* Tab Panels */}
-      <TabPanel value={value} index={0}>
-        <OrdersTable data={sampleData} />
-        <Typography variant="body1">
-          This section shows the client’s current order positions.
-        </Typography>
-      </TabPanel>
+        {/* Tab Panels */}
+        <TabPanel value={value} index={0}>
+          {/* Action Buttons + UPNL */}
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <Button variant="contained" sx={{ bgcolor: "#006699", color: "white" }}>
+                Fetch Positions
+              </Button>
+              <Button variant="contained" sx={{ bgcolor: "#cc6600", color: "white" }}>
+                Close All Positions
+              </Button>
+            </Box>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: "bold",
+                color: totalUPNL < 0 ? "error.main" : "success.main"
+              }}
+            >
+              Total UPNL: {totalUPNL}
+            </Typography>
+          </Box>
 
-      <TabPanel value={value} index={1}>
-        <OrdersTable data={sampleData} />
-        <Typography variant="body1">
-          This section lists all open orders for the client.
-        </Typography>
-      </TabPanel>
+          <OrdersPositionTable data={positions}/>
+          <Typography variant="body1">
+            This section shows the client’s current order positions.
+          </Typography>
+        </TabPanel>
 
-      <TabPanel value={value} index={2}>
-        <OrdersTable data={sampleData} />
-        <Typography variant="body1">
-          This section displays the client's past order history.
-        </Typography>
-      </TabPanel>
+        <TabPanel value={value} index={1}>
+          <OrdersPositionTable data={sampleData} />
+          <Typography variant="body1">
+            This section lists all open orders for the client.
+          </Typography>
+        </TabPanel>
+
+        <TabPanel value={value} index={2}>
+          <OrdersPositionTable data={sampleData} />
+          <Typography variant="body1">
+            This section displays the client's past order history.
+          </Typography>
+        </TabPanel>
+      </Box>
     </Box>
-  </Box>
   );
 }
 

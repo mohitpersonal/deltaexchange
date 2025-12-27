@@ -14,7 +14,7 @@ def signed_get_no_params(api_key, api_secret, path, params=None):
     """
     method = 'GET'
     timestamp = str(int(time.time()))
-    payload = ''  # do not include params in signature payload
+    payload = ''
     signature_data = method + timestamp + path + payload
     signature = generate_signature(api_secret, signature_data)
 
@@ -25,8 +25,9 @@ def signed_get_no_params(api_key, api_secret, path, params=None):
         'User-Agent': 'python-rest-client',
         'Content-Type': 'application/json'
     }
-
-    resp = requests.get(f"{API_BASE_URL}{path}", params=(params or {}), headers=headers, timeout=(3, 27))
+    param = {}
+    resp = requests.get(f"{API_BASE_URL}{path}", params=param, headers=headers, timeout=(3, 27))
+    print("Response text:", resp.text)
     resp.raise_for_status()
     return resp.json()
 
@@ -47,8 +48,8 @@ def fetch_all_orders(api_key, api_secret):
         if after:
             params["after"] = after  # only include cursor if present
 
-        data = signed_get_no_params(api_key, api_secret, path, params)
-        #print("data",data)
+        data = signed_get_no_params(api_key, api_secret, path)
+        print("data",data)
         #orders_wrap = data.get("orders", {}) or {}
         orders = data.get("result", []) or []
         #print("Orders",orders)
@@ -73,7 +74,6 @@ def fetch_all_orders(api_key, api_secret):
             break
 
     return all_orders
-
 
 @orders_history_bp.route("/order-history/<int:client_id>", methods=["GET"])
 def open_orders_route(client_id):
@@ -177,7 +177,7 @@ def open_orders_route(client_id):
                 "client_id": client_id
             })
 
-        response = cursor.execute("SELECT * FROM orders_history WHERE client_id=%s AND user_id=%s and status=1", (client_id,order.get("user_id")))
+        response = cursor.execute("SELECT * FROM orders_history WHERE client_id=%s AND status=1", (client_id))
         response = cursor.fetchall()
         print("Response:", response)
         conn.commit()

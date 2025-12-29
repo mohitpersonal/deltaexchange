@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -12,14 +12,31 @@ import {
   Link,
   Avatar
 } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Sidebar from './Sidebar';
+import { BASE_URL } from '../config';
+import axios from 'axios';
 
 const drawerWidth = 240;
 
 function Placeorder() {
+  const location = useLocation(); 
+  const { selectedClients } = location.state || { selectedClients: [] };
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  
+  // ✅ Dropdown states
+  const [coinNames, setCoinNames] = useState([]);
+  const [expiries, setExpiries] = useState([]);
+  
+  const [strikeSelections, setStrikeSelections] = useState([]);
+
+  const [callsPuts, setCallsPuts] = useState([]);
+  const [quantityTypes, setQuantityTypes] = useState([]);
+  const [percentages, setPercentages] = useState([]);
+  const [lots, setLots] = useState([]);
+
+  // ✅ Form state
   const [formData, setFormData] = useState({
     coinname: "",
     expiry: "",
@@ -33,8 +50,18 @@ function Placeorder() {
     triglimit: "",
     slprice: "",
     slpricelimit: "",
-    ordertype: "Buy",
+    ordertype: "",
   });
+
+  // ✅ Fetch dropdown values from DB
+  useEffect(() => {
+    axios.get(`${BASE_URL}/place-order/coinname`).then(res => setCoinNames(res.data)); 
+    axios.get(`${BASE_URL}/place-order/calls-puts`).then(res => setCallsPuts(res.data));
+    axios.get(`${BASE_URL}/place-order/expiry`).then(res => setExpiries(res.data));
+    axios.get(`${BASE_URL}/place-order/qty-type`).then(res => setQuantityTypes(res.data));
+    axios.get(`${BASE_URL}/place-order/qty-percent`).then(res => setPercentages(res.data));
+    axios.get(`${BASE_URL}/place-order/qty-unit`).then(res => setLots(res.data));
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -43,21 +70,22 @@ function Placeorder() {
       setFormData((prev) => ({
         ...prev,
         quantitytype: value,
-        quantityabs: value === "absolute" ? prev.quantityabs : "",
-        quantityper: value === "percentages" ? prev.quantityper : "",
+        quantityabs: value.toLowerCase() === "absolute" ? prev.quantityabs : "", 
+        quantityper: value.toLowerCase() === "percentages" ? prev.quantityper : "",
       }));
       return;
     }
 
-    if (name === "coinname") {
-      setFormData((prev) => ({
-        ...prev,
-        coinname: value,
-        quantityunit: value === "Bitcoin" ? "btc" : value === "Etherium" ? "eth" : prev.quantityunit,
-      }));
-      return;
-    }
-
+    if (name === "callsputs") 
+      { 
+        axios.get(`${BASE_URL}/place-order/strike-selection`, 
+        { 
+          params: { contract_type: value }, 
+        }) 
+        .then(res => setStrikeSelections(res.data)) 
+        .catch(err => console.error("Error fetching strike selections:", err)); 
+      }
+      
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -111,36 +139,32 @@ function Placeorder() {
             boxShadow: 3,
           }}
         >
-          <Box display="flex" flexDirection="column" gap={3}>
-            {/* Row 1 */}
-            <Box display="flex" gap={2}>
-              <TextField
-                label="Coin Name"
-                name="coinname"
-                select
-                value={formData.coinname}
-                onChange={handleChange}
-                sx={{ flex: 1 }}   // reduced size, half width
-              >
-                <MenuItem value="Bitcoin">Bitcoin</MenuItem>
-                <MenuItem value="Etherium">Etherium</MenuItem>
-              </TextField>
+          {/* ✅ Show selected clients */}
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Clients:{" "}
+            {selectedClients.length > 0
+              ? selectedClients.map(c => `${c.name}`).join(", ")
+              : "No clients selected"}
+          </Typography>
 
-              <TextField
-                label="Expiry"
-                name="expiry"
-                select
-                value={formData.expiry}
-                onChange={handleChange}
-                sx={{ flex: 1 }}   // reduced size, half width
-              >
-                <MenuItem value="1">1 Day</MenuItem>
-                <MenuItem value="3">3 Day</MenuItem>
-                <MenuItem value="7">7 Day</MenuItem>
+          <Box display="flex" flexDirection="column" gap={3}>
+            {/* Coin Name + Expiry */}
+            <Box display="flex" gap={2}>
+              <TextField label="Coin Name" name="coinname" select value={formData.coinname} onChange={handleChange} sx={{ flex: 1 }} >
+                {coinNames.map((coin) => (
+                  <MenuItem key={coin.id} value={coin.name}>{coin.name}</MenuItem>
+                ))}
               </TextField>
+              
+              <TextField label="Calls OR Puts" name="callsputs" select value={formData.callsputs} onChange={handleChange} sx={{ flex: 1 }} >
+                {callsPuts.map((cp) => (
+                  <MenuItem key={cp.id} value={cp.name}>{cp.name}</MenuItem>
+                ))}
+              </TextField>
+              
             </Box>
 
-            {/* Row 2 */}
+            {/* Strike Selection + Calls/Puts */}
             <Box display="flex" gap={2}>
               <TextField
                 label="Strike Selection"
@@ -150,41 +174,46 @@ function Placeorder() {
                 onChange={handleChange}
                 sx={{ flex: 1 }}
               >
-                <MenuItem value="Low">Low</MenuItem>
-                <MenuItem value="Medium">Medium</MenuItem>
-                <MenuItem value="High">High</MenuItem>
+                {(strikeSelections || []).map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    {s.name}
+                  </MenuItem>
+                ))}
               </TextField>
 
-              <TextField
-                label="Calls OR Puts"
-                name="callsputs"
-                select
-                value={formData.callsputs}
-                onChange={handleChange}
-                sx={{ flex: 1 }}
-              >
-                <MenuItem value="CE">Calls</MenuItem>
-                <MenuItem value="PE">Puts</MenuItem>
+              <TextField label="Expiry" name="expiry" select value={formData.expiry} onChange={handleChange} sx={{ flex: 1 }} >
+                {expiries.map((exp, idx) => (
+                  <MenuItem key={idx} value={exp}>{exp}</MenuItem>
+                ))}
               </TextField>
             </Box>
 
-            {/* Row 3 */}
+            {/* Quantity Type */}
             <Box display="flex" gap={2}>
+              <TextField label="Quantity Type" name="quantitytype" select value={formData.quantitytype} onChange={handleChange} sx={{ flex: 1 }} >
+                {quantityTypes.map((qt) => (
+                  <MenuItem key={qt.id} value={qt.name}>{qt.name}</MenuItem>
+                ))}
+              </TextField>
+            
               <TextField
-                label="Quantity Type"
-                name="quantitytype"
+                label="Quantity Lots"
+                name="quantityabs"
                 select
-                value={formData.quantitytype}
+                value={formData.quantityabs || lots[0]?.name}   // default to first lot id
                 onChange={handleChange}
                 sx={{ flex: 1 }}
               >
-                <MenuItem value="absolute">Absolute</MenuItem>
-                <MenuItem value="percentages">Percentages</MenuItem>
+                {lots.map((lot) => (
+                  <MenuItem key={lot.id} value={lot.id}>
+                    {lot.name}
+                  </MenuItem>
+                ))}
               </TextField>
 
-              {/* Show Absolute Quantity only if selected */}
-                {formData.quantitytype === "absolute" && (
-                  <TextField
+
+              {formData.quantitytype.toLowerCase() === "absolute" && (
+                <TextField
                     label="Quantity"
                     name="quantityabs"
                     type="number"
@@ -193,41 +222,15 @@ function Placeorder() {
                     sx={{ flex: 1 }}
                     inputProps={{ step: "any" }}
                   />
-                )}
+              )}
 
-                {formData.quantitytype === "absolute" && (
-                  <TextField
-                    label="Quantity Percent"
-                    name="quantityper"
-                    select
-                    value={formData.quantityper}
-                    onChange={handleChange}
-                    sx={{ flex: 1 }}
-                  >
-                    <MenuItem value="10">10%</MenuItem>
-                    <MenuItem value="25">25%</MenuItem>
-                    <MenuItem value="50">50%</MenuItem>
-                    <MenuItem value="75">75%</MenuItem>
-                    <MenuItem value="100">100%</MenuItem>
-                  </TextField>
-                )}
-            </Box>
-
-            {/* Row 4 */}
-            <Box display="flex" gap={2} alignItems="center">
-              <TextField
-                label="Quantity Unit"
-                name="quantityunit"
-                select
-                value={formData.quantityunit}
-                onChange={handleChange}
-                sx={{ flex: 1 }}
-              >
-                <MenuItem value="lot">Lot</MenuItem>
-                <MenuItem value="usd">USD</MenuItem>
-                <MenuItem value="btc">BTC</MenuItem>
-                <MenuItem value="eth">ETH</MenuItem>
-              </TextField>
+              {formData.quantitytype.toLowerCase() === "percentages" && (
+                <TextField label="Quantity Percent" name="quantityper" select value={formData.quantityper} onChange={handleChange} sx={{ flex: 1 }} >
+                  {percentages.map((p) => (
+                    <MenuItem key={p.id} value={p.name}>{p.name}%</MenuItem>
+                  ))}
+                </TextField>
+              )}
             </Box>
 
             {/* Row 5 */}

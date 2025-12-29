@@ -9,3 +9,13 @@ def get_db_connection():
         database=DB_NAME,
         cursorclass=pymysql.cursors.DictCursor
     )
+
+# ✅ Helper function to fetch single-column values
+def fetch_values(query, params=None):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(query, params or ())
+    results = [{"id": row[list(row.keys())[0]], "name": row[list(row.keys())[1]]} for row in cursor.fetchall()]
+    cursor.close()
+    conn.close()
+    return results

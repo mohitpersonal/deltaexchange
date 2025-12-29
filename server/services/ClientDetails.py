@@ -4,11 +4,6 @@ from services.db_connect import get_db_connection
 
 clients_bp = Blueprint("clients", __name__)
 
-# Allow all origins (for development)
-#CORS(clients_bp)
-
-#CORS(clients_bp, resources={r"/*": {"origins": "http://localhost:3000"}})
-
 @clients_bp.route('/clients/add_client', methods=['POST'])
 def add_client():
     data = request.get_json()

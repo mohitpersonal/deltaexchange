@@ -187,6 +187,7 @@ function ClientForm({ open, onClose, onSave, initialValues }) {
 }
 
 function Clients() {
+    // State
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [selected, setSelected] = useState([]);
@@ -203,22 +204,20 @@ function Clients() {
 
   const [clients, setClients] = useState([]);
   const [openForm, setOpenForm] = useState(false);
-  
-  useEffect(() => { 
-    axios.get(`${BASE_URL}/clients`) 
-        .then((res) => { setClients(res.data); }) 
-        .catch((err) => { console.error("Error fetching clients:", err); });
-      }, 
-    []);
 
-  
-  const [groups, setGroups] = useState([]); 
+  useEffect(() => {
+    axios.get(`${BASE_URL}/clients`)
+      .then((res) => setClients(res.data))
+      .catch((err) => console.error("Error fetching clients:", err));
+  }, []);
+
+  const [groups, setGroups] = useState([]);
   const [marginModes, setMarginModes] = useState([]);
 
   useEffect(() => {
-      axios.get(`${BASE_URL}/clients/groups`).then(res => setGroups(res.data)); 
-      axios.get(`${BASE_URL}/clients/margin_mode`).then(res => setMarginModes(res.data)); }, 
-    []);
+    axios.get(`${BASE_URL}/clients/groups`).then(res => setGroups(res.data));
+    axios.get(`${BASE_URL}/clients/margin_mode`).then(res => setMarginModes(res.data));
+  }, []);
 
   // Sorting
   const handleRequestSort = (property) => {
@@ -246,23 +245,34 @@ function Clients() {
     return 0;
   });
 
-  // Select all
+  // ✅ Select All (across all pages)
   const handleSelectAllClick = (event) => {
     if (event.target.checked) {
-      setSelected(sortedClients.map((c) => c.id));
+      setSelected(sortedClients.map((c) => c.client_id)); // use client_id consistently
     } else {
       setSelected([]);
     }
   };
 
-  // Row select
+  // ✅ Toggle single row
   const handleClick = (id) => {
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
-    );
+    const selectedIndex = selected.indexOf(id);
+    let newSelected = [];
+
+    if (selectedIndex === -1) {
+      newSelected = newSelected.concat(selected, id);
+    } else {
+      newSelected = newSelected.concat(
+        selected.slice(0, selectedIndex),
+        selected.slice(selectedIndex + 1)
+      );
+    }
+
+    setSelected(newSelected);
   };
 
-  const isSelected = (id) => selected.includes(id);
+  // ✅ Helper
+  const isSelected = (id) => selected.indexOf(id) !== -1;
 
   // Status chip
   const getStatusChip = (status) => {
@@ -393,13 +403,17 @@ function Clients() {
               Add Client
             </Button>
             <ClientForm open={openForm} onClose={handleCloseForm} onSave={handleSave} />
-
-            <Button
-              variant="contained"
-              sx={{ bgcolor: "#006699", color: "white" }}
-              onClick={() => navigate("/place-order")}
-            >
-              Place Order
+            <Button 
+              variant="contained" 
+              sx={{ bgcolor: "#006699", color: "white" }} 
+              
+              onClick={() => { 
+                if (selected.length === 0) { alert("Please select at least one client"); return; }
+                
+                const selectedClients = sortedClients.filter(c => selected.includes(c.client_id) ).map(c => ({ id: c.client_id, name: c.name })); 
+                navigate("/place-order", { state: { selectedClients } }); }} 
+            > 
+              Place Order 
             </Button>
 
             <Button variant="contained" sx={{ bgcolor: "#0099cc", color: "white" }} onClick={handleFetchWalletBalances}>

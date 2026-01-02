@@ -23,6 +23,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import Sidebar from './Sidebar';
 import { BASE_URL } from '../config';
+import apiClient from "../api/axiosConfig";
 
 // Dummy data for demonstration
 const sampleData = [
@@ -518,36 +519,29 @@ function ClientDetails() {
 
   useEffect(() => {
     if (tabIndex === 0) {
-      fetch(`${BASE_URL}/positions/${client_id}`)
-        .then((res) => res.json())
-        .then((data) => {
-          setPositions(data.result || []);
+      apiClient.get(`/positions/${client_id}`)
+        .then((res) => {
+          setPositions(res.data.result || []);
         })
         .catch((err) => console.error("Error fetching positions:", err));
     }
-  }, [client_id,tabIndex]);
+  }, [client_id, tabIndex]);
 
-  // Fetch order history when tabIndex changes to 1 (second tab)
   useEffect(() => {
     if (tabIndex === 1) {
-      fetch(`${BASE_URL}/open-orders/${client_id}`)
-        .then((res) => res.json())
-        .then((json) => {
-          // json.orders is the array you want
-          setOpenOrders(json.orders || []);
+      apiClient.get(`/open-orders/${client_id}`)
+        .then((res) => {
+          setOpenOrders(res.data.orders || []);
         })
-        .catch((err) => console.error("Error fetching order history:", err));
+        .catch((err) => console.error("Error fetching open orders:", err));
     }
   }, [client_id, tabIndex]);
 
-  // Fetch order history when tabIndex changes to 1 (second tab)
   useEffect(() => {
     if (tabIndex === 2) {
-      fetch(`${BASE_URL}/order-history/${client_id}`)
-        .then((res) => res.json())
-        .then((json) => {
-          // json.orders is the array you want
-          setOrdersHistory(json.orders || []);
+      apiClient.get(`/order-history/${client_id}`)
+        .then((res) => {
+          setOrdersHistory(res.data.orders || []);
         })
         .catch((err) => console.error("Error fetching order history:", err));
     }

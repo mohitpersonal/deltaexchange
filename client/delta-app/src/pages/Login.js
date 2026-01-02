@@ -5,29 +5,67 @@ import {
   Typography,
   TextField,
   Button,
-  Link,
   Paper,
+  Alert,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+import apiClient from "../api/axiosConfig"; // use your configured axios instance
+import { BASE_URL } from "../config";
 
 function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Username:", username);
-    console.log("Password:", password);
-    // Add authentication logic here if needed
-    
-    navigate("/clients"); // Navigate to Clients page
+    setError("");
+
+    // Basic client validation
+    if (!username || !password) {
+      setError("Username and password are required");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Use apiClient so interceptors apply
+      const res = await apiClient.post(`${BASE_URL}/login`, {
+        username,
+        password,
+      });
+
+      console.log("Login response:", res.data);
+
+      if (res.data?.token) {
+        // Save JWT token so PrivateRoute can see it
+        localStorage.setItem("token", res.data.token);
+        console.log("Token received:", res.data.token);
+        console.log("Token in localStorage:", localStorage.getItem("token"));
+
+        // Redirect to clients page
+        navigate("/clients");
+      } else {
+        setError(res.data?.message || "Login failed");
+      }
+    } catch (err) {
+      if (err.response) {
+        setError(err.response.data?.message || `Error ${err.response.status}`);
+      } else if (err.request) {
+        setError("Cannot reach server. Check API URL and CORS.");
+      } else {
+        setError("Unexpected error. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <Container maxWidth="sm">
       <Paper elevation={6} sx={{ padding: 4, marginTop: 8, borderRadius: 3 }}>
-        {/* Header */}
         <Box textAlign="center" mb={3}>
           <Typography variant="h4" fontWeight="bold" color="primary">
             Welcome 👋
@@ -37,7 +75,12 @@ function Login() {
           </Typography>
         </Box>
 
-        {/* Form */}
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
         <Box component="form" onSubmit={handleSubmit} noValidate>
           <TextField
             label="Username"
@@ -60,12 +103,12 @@ function Login() {
             type="submit"
             variant="contained"
             fullWidth
+            disabled={loading}
             sx={{ mt: 2, py: 1.5 }}
           >
-            Login
+            {loading ? "Logging in..." : "Login"}
           </Button>
         </Box>
-        
       </Paper>
     </Container>
   );

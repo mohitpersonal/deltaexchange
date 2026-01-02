@@ -2,6 +2,7 @@
 import './App.css';
 import React from "react";
 import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
+import PrivateRoute from './routes/PrivateRoute';
 import Login from './pages/Login';
 import Clients from './pages/Clients';
 import Placeorder from './pages/Placeorder';
@@ -17,13 +18,10 @@ function App() {
         
         {/* Define routes */}
         <Route path="/login" element={<Login />} />
-        <Route path="/clients" element={<Clients />} />
-        <Route path="/place-order" element={<Placeorder />} />
-
-        {/* Dynamic route with client_id param */}
-        <Route path="/clients/client-details/:client_id" element={<Clientsdetails />} />
-
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/clients" element={<PrivateRoute> <Clients /> </PrivateRoute>} />
+        <Route path="/place-order" element={<PrivateRoute><Placeorder /> </PrivateRoute>} />
+        <Route path="/clients/client-details/:client_id" element={<PrivateRoute><Clientsdetails /></PrivateRoute>} />
+        <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>
   );

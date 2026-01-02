@@ -1,7 +1,7 @@
 import time
 import requests
 from flask import Blueprint, jsonify
-from helpers.common import generate_signature
+from helpers.common import generate_signature, token_required
 from config import API_BASE_URL
 from services.db_connect import get_db_connection   # your DB helper
 wallet_balances_bp = Blueprint("wallet_balances", __name__)
@@ -40,7 +40,8 @@ def fetch_wallet_balance_for_client(api_key, api_secret):
         return {"error": str(e)}
 
 @wallet_balances_bp.route("/wallet-balances", methods=["GET"])
-def wallet_balances():
+@token_required
+def wallet_balances(user_id):
     conn = get_db_connection()
     cursor = conn.cursor()
 

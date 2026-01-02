@@ -16,6 +16,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import Sidebar from './Sidebar';
 import { BASE_URL } from '../config';
 import axios from 'axios';
+import apiClient from "../api/axiosConfig";
 
 const drawerWidth = 240;
 
@@ -36,6 +37,7 @@ function Placeorder() {
   const [percentages, setPercentages] = useState([]);
   const [lots, setLots] = useState([]);
 
+  const [error, setError] = useState("");
   // ✅ Form state
   const [formData, setFormData] = useState({
     coinname: "",
@@ -55,42 +57,62 @@ function Placeorder() {
 
   // ✅ Fetch dropdown values from DB
   useEffect(() => {
-    axios.get(`${BASE_URL}/place-order/coinname`).then(res => setCoinNames(res.data)); 
-    axios.get(`${BASE_URL}/place-order/calls-puts`).then(res => setCallsPuts(res.data));
-    axios.get(`${BASE_URL}/place-order/expiry`).then(res => setExpiries(res.data));
-    axios.get(`${BASE_URL}/place-order/qty-type`).then(res => setQuantityTypes(res.data));
-    axios.get(`${BASE_URL}/place-order/qty-percent`).then(res => setPercentages(res.data));
-    axios.get(`${BASE_URL}/place-order/qty-unit`).then(res => setLots(res.data));
+    // run all requests in parallel
+    Promise.all([
+      apiClient.get("/place-order/coinname"),
+      apiClient.get("/place-order/calls-puts"),
+      apiClient.get("/place-order/expiry"),
+      apiClient.get("/place-order/qty-type"),
+      apiClient.get("/place-order/qty-percent"),
+      apiClient.get("/place-order/qty-unit"),
+    ])
+      .then(([coinRes, callsRes, expiryRes, qtyTypeRes, qtyPercentRes, qtyUnitRes]) => {
+        setCoinNames(coinRes.data);
+        setCallsPuts(callsRes.data);
+        setExpiries(expiryRes.data);
+        setQuantityTypes(qtyTypeRes.data);
+        setPercentages(qtyPercentRes.data);
+        setLots(qtyUnitRes.data);
+      })
+      .catch((err) => {
+        console.error("Error fetching place-order data:", err);
+        setError({
+          open: true,
+          message: err.response?.data?.message || "Failed to fetch place-order data",
+        });
+      });
   }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     if (name === "quantitytype") {
       setFormData((prev) => ({
         ...prev,
         quantitytype: value,
-        quantityabs: value.toLowerCase() === "absolute" ? prev.quantityabs : "", 
+        quantityabs: value.toLowerCase() === "absolute" ? prev.quantityabs : "",
         quantityper: value.toLowerCase() === "percentages" ? prev.quantityper : "",
       }));
       return;
     }
 
-    if (name === "callsputs") 
-      { 
-        axios.get(`${BASE_URL}/place-order/strike-selection`, 
-        { 
-          params: { contract_type: value }, 
-        }) 
-        .then(res => setStrikeSelections(res.data)) 
-        .catch(err => console.error("Error fetching strike selections:", err)); 
-      }
-      
+    if (name === "callsputs") {
+      apiClient
+        .get("/place-order/strike-selection", { params: { contract_type: value } })
+        .then((res) => setStrikeSelections(res.data))
+        .catch((err) => {
+          console.error("Error fetching strike selections:", err);
+          setError({
+            open: true,
+            message: err.response?.data?.message || "Failed to fetch strike selections",
+          });
+        });
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
-    
   };
 
   const handleSubmit = (e) => {

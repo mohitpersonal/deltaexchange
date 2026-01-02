@@ -1,10 +1,12 @@
 from flask import Blueprint, request, jsonify
 from services.db_connect import get_db_connection
+from helpers.common import token_required
 #from flask_cors import CORS
 
 clients_bp = Blueprint("clients", __name__)
 
 @clients_bp.route('/clients/add_client', methods=['POST'])
+@token_required
 def add_client():
     data = request.get_json()
     conn = get_db_connection()
@@ -38,7 +40,8 @@ def add_client():
     return jsonify({"message": "Client added successfully", "id": client_id}), 201
 
 @clients_bp.route("/clients", methods=["GET"])
-def get_clients():
+@token_required
+def get_clients(user_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     sql_query = "SELECT client_id, name, mobile_no as number, email_id as email, g.group_name, mm.margin_mode, wallet_balance, m2m_daily FROM `clients` c JOIN groups g ON c.group_id = g.group_id and g.status=1 JOIN margin_mode mm ON c.margin_mode_id=mm.margin_mode_id and mm.status=1 WHERE c.status=1"
@@ -49,7 +52,8 @@ def get_clients():
     return jsonify(clients)
 
 @clients_bp.route('/clients/groups', methods=['GET']) 
-def get_groups(): 
+@token_required
+def get_groups(user_id): 
     conn = get_db_connection()
     cursor = conn.cursor() 
     cursor.execute("SELECT group_id, group_name FROM groups where status=1") 
@@ -58,8 +62,9 @@ def get_groups():
     groups = [{"group_id": r["group_id"], "group_name": r["group_name"]} for r in rows] 
     return jsonify(groups) 
 
-@clients_bp.route('/clients/margin_mode', methods=['GET']) 
-def get_margin_modes(): 
+@clients_bp.route('/clients/margin_mode', methods=['GET'])
+@token_required 
+def get_margin_modes(user_id): 
     conn = get_db_connection()
     cursor = conn.cursor() 
     cursor.execute("SELECT margin_mode_id, margin_mode FROM margin_mode where status=1") 

@@ -27,6 +27,7 @@ import Sidebar from './Sidebar';
 import { useNavigate } from "react-router-dom";
 import { BASE_URL } from '../config';
 import axios from 'axios';
+import apiClient from "../api/axiosConfig";
 
 const drawerWidth = 240;
 
@@ -34,6 +35,7 @@ const drawerWidth = 240;
 function ClientForm({ open, onClose, onSave, initialValues }) {
   const [groups, setGroups] = useState([]); 
   const [marginModes, setMarginModes] = useState([]);
+  const [error, setError] = useState("");
   const [formData, setFormData] = useState(
     initialValues || {
           name: "",
@@ -50,10 +52,30 @@ function ClientForm({ open, onClose, onSave, initialValues }) {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  useEffect(() => { if (open) { 
-      axios.get(`${BASE_URL}/clients/groups`).then(res => setGroups(res.data)); 
-      axios.get(`${BASE_URL}/clients/margin_mode`).then(res => setMarginModes(res.data)); } }, 
-    [open]);
+  useEffect(() => {
+    if (open) {
+      const fetchData = async () => {
+        try {
+          const [groupsRes, marginRes] = await Promise.all([
+            apiClient.get("/clients/groups"),
+            apiClient.get("/clients/margin_mode"),
+          ]);
+
+          setGroups(groupsRes.data);
+          setMarginModes(marginRes.data);
+        } catch (err) {
+          if (err.response?.status === 401) {
+            // Token expired/invalid → handled by interceptor, but you can show message
+            setError("Session expired. Please log in again.");
+          } else {
+            setError(err.response?.data?.message || "Failed to fetch data");
+          }
+        }
+      };
+
+      fetchData();
+    }
+  }, [open]);
   
   useEffect(() => { if (initialValues) { 
       setFormData(initialValues); } }, 
@@ -62,7 +84,7 @@ function ClientForm({ open, onClose, onSave, initialValues }) {
    const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${BASE_URL}/clients/add_client`, formData);
+      await apiClient.post(`${BASE_URL}/clients/add_client`, formData);
       onSave(formData);
       onClose();
       setFormData({
@@ -204,20 +226,56 @@ function Clients() {
 
   const [clients, setClients] = useState([]);
   const [openForm, setOpenForm] = useState(false);
+  const [error, setError] = useState("");
+
+  const fetchClients = async () => {
+    try {
+      const res = await apiClient.get("/clients"); // token auto-attached
+      setClients(res.data); // adjust based on backend response
+    } catch (err) {
+      // Handle token-related errors
+      if (err.response && err.response.status === 401) {
+        setError("Session expired. Please log in again.");
+        localStorage.removeItem("token"); // clear token
+        navigate("/login"); // redirect to login
+      } else {
+        setError(err.response?.data?.message || "Failed to fetch clients");
+      }
+    }
+  };
 
   useEffect(() => {
-    axios.get(`${BASE_URL}/clients`)
-      .then((res) => setClients(res.data))
-      .catch((err) => console.error("Error fetching clients:", err));
+    fetchClients();
   }, []);
 
   const [groups, setGroups] = useState([]);
   const [marginModes, setMarginModes] = useState([]);
 
   useEffect(() => {
-    axios.get(`${BASE_URL}/clients/groups`).then(res => setGroups(res.data));
-    axios.get(`${BASE_URL}/clients/margin_mode`).then(res => setMarginModes(res.data));
-  }, []);
+    const fetchFilters = async () => {
+      try {
+        // Run both requests in parallel
+        const [groupsRes, marginRes] = await Promise.all([
+          apiClient.get("/clients/groups"),
+          apiClient.get("/clients/margin_mode"),
+        ]);
+
+        setGroups(groupsRes.data);
+        setMarginModes(marginRes.data);
+      } catch (err) {
+        if (err.response?.status === 401) {
+          // Token expired or invalid
+          setError("Session expired. Please log in again.");
+          localStorage.removeItem("token");
+          navigate("/login"); // redirect to login
+        } else {
+          setError(err.response?.data?.message || "Failed to load filters");
+        }
+      }
+    };
+
+    fetchFilters();
+  }, [navigate]);
 
   // Sorting
   const handleRequestSort = (property) => {
@@ -227,16 +285,19 @@ function Clients() {
   };
 
   // Filter logic
-  const filteredClients = clients.filter((c) => {
-    const matchesSearch =
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.email.toLowerCase().includes(search.toLowerCase());
+  const filteredClients = Array.isArray(clients)
+  ? clients.filter((c) => {
+      const matchesSearch =
+        (c.name?.toLowerCase() || "").includes(search.toLowerCase()) ||
+        (c.email?.toLowerCase() || "").includes(search.toLowerCase());
 
-    const matchesGroup = groupFilter ? c.group_name === groupFilter : true;
-    const matchesMarginMode = marginmodeFilter ? c.margin_mode === marginmodeFilter : true;
+      const matchesGroup = groupFilter ? c.group_name === groupFilter : true;
+      const matchesMarginMode = marginmodeFilter ? c.margin_mode === marginmodeFilter : true;
 
-    return matchesSearch && matchesGroup && matchesMarginMode;
-  });
+      return matchesSearch && matchesGroup && matchesMarginMode;
+    })
+  : [];
+
 
   // Sorting logic
   const sortedClients = [...filteredClients].sort((a, b) => {
@@ -311,61 +372,56 @@ function Clients() {
   const [successAlert, setSuccessAlert] = useState({ open: false, message: "" }); // For Success msg notifications
 
   const handleFetchWalletBalances = () => {
-    axios.get(`${BASE_URL}/wallet-balances`)
-      .then((res) => {
-        const { results, errors } = res.data;
+  apiClient.get("/wallet-balances")
+    .then((res) => {
+      const { results, errors } = res.data;
 
-        // Update balances in table
-        setClients((prevClients) =>
-          prevClients.map((clients) => {
-            const updated = results.find((c) => c.client_name === clients.name);
-            return updated
-              ? {
-                  ...clients,
-                  wallet_balance_inr: updated.wallet_balance_inr,
-                  wallet_balance_usd: updated.wallet_balance_usd,
-                }
-              : clients;
-          })
-        );
+      setClients((prevClients) =>
+        prevClients.map((client) => {
+          const updated = results.find((c) => c.client_name === client.name);
+          return updated
+            ? {
+                ...client,
+                wallet_balance_inr: updated.wallet_balance_inr,
+                wallet_balance_usd: updated.wallet_balance_usd,
+              }
+            : client;
+        })
+      );
 
-        // Handle failed balances here
-        if (errors && errors.length > 0) {
-          const failedNames = errors.map(e => e.client_name).join(", ");
-          setErrorAlert({
-            open: true,
-            message: `Error fetching wallet balances for: ${failedNames}`
-          });
-        }
-      })
-      .catch((err) => {
-        // Only runs if the API call itself fails (server/network issue)
+      if (errors && errors.length > 0) {
+        const failedNames = errors.map(e => e.client_name).join(", ");
         setErrorAlert({
           open: true,
-          message: "API call failed: " + err.message
+          message: `Error fetching wallet balances for: ${failedNames}`
         });
+      }
+    })
+    .catch((err) => {
+      setErrorAlert({
+        open: true,
+        message: "API call failed: " + err.message
       });
-  };
-  
+    });
+};
 
   const handleProductLists = async () => {
     try {
-      await axios.get(`${BASE_URL}/product_lists`);
-      // Success message
+      await apiClient.get("/product_lists");
       setSuccessAlert({
-          open: true,
-          message: "Products list updated successfully!" 
+        open: true,
+        message: "Products list updated successfully!"
       });
       setTimeout(() => setSuccessAlert({ open: false, message: "" }), 4000);
     } catch (err) {
-      // Error message
-      setErrorAlert({ 
-          open: true,
-          message: "API call failed: " + err.message 
-        });
+      setErrorAlert({
+        open: true,
+        message: "API call failed: " + err.message
+      });
       setTimeout(() => setErrorAlert({ open: false, message: "" }), 4000);
     }
   };
+
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>

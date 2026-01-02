@@ -2,7 +2,7 @@ import time
 import requests
 from flask import Blueprint, jsonify
 from services.db_connect import get_db_connection
-from helpers.common import generate_signature
+from helpers.common import generate_signature, token_required
 from config import API_BASE_URL
 
 orders_history_bp = Blueprint("orders_history", __name__)
@@ -76,7 +76,8 @@ def fetch_all_orders(api_key, api_secret):
     return all_orders
 
 @orders_history_bp.route("/order-history/<int:client_id>", methods=["GET"])
-def open_orders_route(client_id):
+@token_required
+def open_orders_route(user_id, client_id):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()

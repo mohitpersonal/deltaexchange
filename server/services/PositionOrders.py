@@ -3,7 +3,7 @@ import requests
 import time
 from datetime import datetime
 from services.db_connect import get_db_connection
-from helpers.common import generate_signature
+from helpers.common import generate_signature, token_required
 from config import API_BASE_URL
 
 # app = Flask(__name__)
@@ -35,7 +35,8 @@ def fetch_positions_for_client(api_key, api_secret):
         return {"error": str(e)}
 
 @positionorders_bp.route('/positions/<int:client_id>', methods=['GET'])
-def get_positions(client_id):
+@token_required
+def get_positions(user_id, client_id):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()  # if supported, else unpack tuple

@@ -1,6 +1,7 @@
 import json
 import requests
-from services.db_connect import get_db_connection 
+from services.db_connect import get_db_connection
+from helpers.common import token_required
 from flask import Blueprint, jsonify
 from config import API_BASE_URL
 
@@ -88,7 +89,8 @@ def ingest_products():
     return {"inserted_or_updated": inserted}
 
 @productlists_bp.route("/product_lists", methods=["POST", "GET"])
-def ingest_route():
+@token_required
+def ingest_route(user_id):
     try:
         stats = ingest_products()
         return jsonify({"status": "ok", **stats}), 200

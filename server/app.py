@@ -3,6 +3,7 @@ from config import CORS_URL
 from services.OpenOrders import orders_details_bp
 from services.FetchWalletBalance import wallet_balances_bp
 from services.ClientDetails import clients_bp
+from services.Login import login_bp
 from services.ProductLists import productlists_bp
 from services.PositionOrders import positionorders_bp
 from services.OrderHistory import orders_history_bp
@@ -22,6 +23,7 @@ app.register_blueprint(productlists_bp)
 app.register_blueprint(positionorders_bp)
 app.register_blueprint(orders_history_bp)
 app.register_blueprint(place_order_bp)
+app.register_blueprint(login_bp)
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)

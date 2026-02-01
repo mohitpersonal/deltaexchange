@@ -28,15 +28,31 @@ def fetch_wallet_balance_for_client(api_key, api_secret):
         response = requests.request(
             method,
             url,
-            data=payload,   # keep this, even if empty
+            data=payload,
             params={},
             headers=req_headers,
             timeout=(3, 27),
         )
         print("Response text:", response.text)
         response.raise_for_status()
-        return response.json()
+        balances = response.json()
+
+        # Handle both dict and list responses
+        if isinstance(balances, dict):
+            assets = balances.get("result", [])
+        elif isinstance(balances, list):
+            assets = balances
+        else:
+            assets = []
+
+        # Filter only asset_id = 14 (USDT)
+        usdt_balance = [asset for asset in assets if asset.get("asset_id") == 14]
+
+        print("Only fetch for asset_id 14:", usdt_balance)
+        return usdt_balance
+
     except Exception as e:
+        print("Error occurred:", str(e))
         return {"error": str(e)}
 
 @wallet_balances_bp.route("/wallet-balances", methods=["GET"])
@@ -54,10 +70,14 @@ def wallet_balances(user_id):
     for client in clients:
         balances = fetch_wallet_balance_for_client(client["api_key"], client["api_secret"])
 
-        if balances and balances.get("success") is True:
+        # balances is now a list of assets, not a dict
+        if isinstance(balances, list) and balances:
             try:
-                wallet_balance_inr = balances["result"][0]["available_balance_inr"]
-                wallet_balance_usd = balances["result"][0]["balance"]
+                # since you filtered for asset_id=14, just take the first entry
+                usdt_asset = balances[0]
+
+                wallet_balance_usd = usdt_asset.get("balance")
+                wallet_balance_inr = usdt_asset.get("available_balance_inr", 0)
 
                 update_cursor = conn.cursor()
                 update_cursor.execute(
@@ -87,7 +107,7 @@ def wallet_balances(user_id):
                     "error": error_msg
                 })
         else:
-            error_msg = balances.get("error", "Unknown error in API")
+            error_msg = balances.get("error", "Unknown error in API") if isinstance(balances, dict) else "No balances returned"
             log_cursor = conn.cursor()
             log_cursor.execute(
                 "INSERT INTO api_log_history (client_id, api_name, error) VALUES (%s, %s, %s)",

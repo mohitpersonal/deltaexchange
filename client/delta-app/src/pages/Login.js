@@ -42,8 +42,6 @@ function Login() {
       if (res.data?.token) {
         // Save JWT token so PrivateRoute can see it
         localStorage.setItem("token", res.data.token);
-        console.log("Token received:", res.data.token);
-        console.log("Token in localStorage:", localStorage.getItem("token"));
 
         // Redirect to clients page
         navigate("/clients");

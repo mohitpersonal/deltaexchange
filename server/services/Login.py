@@ -37,10 +37,14 @@ def login():
         stored_hash = user["password"]
         if bcrypt.checkpw(password.encode("utf-8"), stored_hash.encode("utf-8")): 
             # ✅ Generate JWT token
+            # payload = {
+            #     "user_id": user["id"],
+            #     "username": user["username"],
+            #     "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=30)  # expires in 30 min
+            # }
             payload = {
                 "user_id": user["id"],
-                "username": user["username"],
-                "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=30)  # expires in 30 min
+                "username": user["username"]
             }
             token = generate_token(user["id"])
 

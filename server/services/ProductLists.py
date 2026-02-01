@@ -20,6 +20,7 @@ def map_product_to_row(product: dict) -> dict:
         "leverage_slider_values": json.dumps((product.get("ui_config") or {}).get("leverage_slider_values")),
         "api_json_response": json.dumps(product),  # full JSON blob
         "tick_size": product.get("tick_size"),
+        "settlement_time": product.get("settlement_time"),
     }
 
 
@@ -35,7 +36,8 @@ INSERT INTO products_details (
   backup_vol_expiry_time,
   leverage_slider_values,
   api_json_response,
-  tick_size
+  tick_size,
+  settlement_time
 ) VALUES (
   %(id)s,
   %(symbol)s,
@@ -47,7 +49,8 @@ INSERT INTO products_details (
   %(backup_vol_expiry_time)s,
   %(leverage_slider_values)s,
   %(api_json_response)s,
-  %(tick_size)s
+  %(tick_size)s,
+  %(settlement_time)s
 )
 ON DUPLICATE KEY UPDATE
   symbol = VALUES(symbol),
@@ -59,7 +62,8 @@ ON DUPLICATE KEY UPDATE
   backup_vol_expiry_time = VALUES(backup_vol_expiry_time),
   leverage_slider_values = VALUES(leverage_slider_values),
   api_json_response = VALUES(api_json_response),
-  tick_size = VALUES(tick_size);
+  tick_size = VALUES(tick_size),
+  settlement_time = VALUES(settlement_time);
 """
 def ingest_products():
     conn = get_db_connection()

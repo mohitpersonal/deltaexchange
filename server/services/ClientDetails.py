@@ -7,7 +7,7 @@ clients_bp = Blueprint("clients", __name__)
 
 @clients_bp.route('/clients/add_client', methods=['POST'])
 @token_required
-def add_client():
+def add_client(user_id):
     data = request.get_json()
     conn = get_db_connection()
     cursor = conn.cursor()

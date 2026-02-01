@@ -198,3 +198,35 @@ def open_orders_route(user_id,client_id):
         return jsonify({"error": "HTTP error", "details": str(http_err)}), 502
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+
+# CLOSE ALL ORDERS
+
+def order_cancellation(order_id):
+    method = "DELETE"
+    timestamp = str(int(time.time()))  # seconds
+    path = "/v2/orders"
+    url = f"{API_BASE_URL}{path}"
+    payload = ""  # empty string for GET
+
+    signature_data = method + timestamp + path + query_string + payload
+    signature = generate_signature(api_secret, signature_data)
+
+    req_headers = {
+        "api-key": api_key,
+        "timestamp": timestamp,
+        "signature": signature,
+        "User-Agent": "python-rest-client",
+    }
+    param = {"states": "open"}
+    try:
+        response = requests.delete(url, params=param, headers=req_headers, timeout=(3, 27))
+        print("Response text:", response.text)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+# @orders_details_bp.route("/close-orders/<int:client_id>", methods=["GET"])
+# @token_required
+# def close_orders(user_id):

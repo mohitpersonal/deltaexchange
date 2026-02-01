@@ -547,6 +547,24 @@ function ClientDetails() {
     }
   }, [client_id, tabIndex]);
 
+
+  const handleClosePositions = async () => {
+    try {
+      const response = await apiClient.get(`/positions/close-position/${client_id}`);
+      if (response.data.success) {
+        // ✅ Call parent callback to remove from Open Positions list
+        setTabIndex(0);
+      } else {
+        console.error("Error closing positions:", response.data.error);
+        alert("Failed to close positions: " + response.data.error);
+      }
+    } catch (err) {
+      console.error("Request failed:", err);
+      alert("Request failed: " + err.message);
+    }
+  };
+
+
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
       <Sidebar />
@@ -597,10 +615,7 @@ function ClientDetails() {
           {/* Action Buttons + UPNL */}
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
             <Box sx={{ display: "flex", gap: 2 }}>
-              {/* <Button variant="contained" sx={{ bgcolor: "#006699", color: "white" }}>
-                Fetch Positions
-              </Button> */}
-              <Button variant="contained" sx={{ bgcolor: "#cc6600", color: "white" }}>
+              <Button variant="contained" sx={{ bgcolor: "#cc6600", color: "white" }} onClick={handleClosePositions}>
                 Close All Positions
               </Button>
             </Box>

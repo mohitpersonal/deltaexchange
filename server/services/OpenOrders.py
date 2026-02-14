@@ -198,10 +198,8 @@ def open_orders_route(user_id,client_id):
         return jsonify({"error": "HTTP error", "details": str(http_err)}), 502
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    
 
 # CLOSE ALL ORDERS
-
 def order_cancellation(order_id):
     method = "DELETE"
     timestamp = str(int(time.time()))  # seconds

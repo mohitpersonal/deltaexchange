@@ -135,6 +135,44 @@ def place_order_for_client(clients, form_data, user_id):
             headers=req_headers,
             timeout=(3, 27),
         )
+        #response = {"meta":{},"result":{"margin_mode":"isolated","client_order_id":None,"commission":"0","bracket_order":None,"unfilled_size":0,"state":"closed","average_fill_price":"105","bracket_trail_amount":None,"product_symbol":"C-BTC-83600-030226","id":1149547182,"stop_price":None,"mmp":"disabled","meta_data":{"cashflow":"-0.42","ip":"2405:201:38:30c0:9146:56ee:2980:5a18","otc":false,"pnl":"-0","source":"api"},"U":"0.017346","created_at":"2026-02-01T10:59:34.295899Z","order_type":"market_order","bracket_take_profit_price":None,"limit_price":"924.4","updated_at":"2026-02-01T10:59:34.363312Z","reduce_only":false,"cancellation_reason":None,"product_id":119551,"stop_order_type":None,"quote_size":None,"stop_trigger_method":None,"user_id":39492677,"trail_amount":None,"side":"buy","bracket_stop_loss_price":None,"size":4,"time_in_force":"ioc","bracket_stop_loss_limit_price":None,"bracket_take_profit_limit_price":None},"success":true}
+        # response = {
+        #         "meta": {},
+        #         "result": {
+        #             "margin_mode": "isolated",
+        #             "client_order_id": None,
+        #             "commission": "0",
+        #             "bracket_order": None,
+        #             "unfilled_size": 0,
+        #             "state": "closed",
+        #             "average_fill_price": "105",
+        #             "bracket_trail_amount": None,
+        #             "product_symbol": "C-BTC-83600-030226",
+        #             "id": 1149547182,
+        #             "stop_price": None,
+        #             "mmp": "disabled",
+        #             "meta_data": {
+        #             "cashflow": "-0.42",
+        #             "ip": "2405:201:38:30c0:9146:56ee:2980:5a18",
+        #             "otc": False,   # ✅ Python boolean
+        #             "pnl": "-0",
+        #             "source": "api"
+        #             },
+        #             "U": "0.017346",
+        #             "created_at": "2026-02-01T10:59:34.295899Z",
+        #             "order_type": "market_order",
+        #             "limit_price": "924.4",
+        #             "updated_at": "2026-02-01T10:59:34.363312Z",
+        #             "reduce_only": False,   # ✅ Python boolean
+        #             "product_id": 119551,
+        #             "user_id": 39492677,
+        #             "side": "buy",
+        #             "size": 4,
+        #             "time_in_force": "ioc"
+        #         },
+        #         "success": True   # ✅ Python boolean
+        #         }
+
         print("Response text:", response.text)
         response.raise_for_status()
         return response.json()
@@ -142,14 +180,13 @@ def place_order_for_client(clients, form_data, user_id):
         print("Error occurred:", str(e))
         return {"error": str(e)}
 
-
 @place_order_bp.route("/place-order/placed-order", methods=["POST"])
 @token_required
 def place_order_successfully(user_id):
     form_data = request.json.get("formData", {})
     selected_clients = request.json.get("selectedClients", [])
-    print("From Data",form_data)
-    print("Client details",selected_clients)
+    print("Form Data", form_data)
+    print("Client details", selected_clients)
 
     if not form_data or not selected_clients:
         return jsonify({"error": "Missing formData or selectedClients"}), 400
@@ -160,22 +197,57 @@ def place_order_successfully(user_id):
     results = []
     for client in selected_clients:
         client_id = client.get("id")
-        print("Client id",client_id)
-        cursor.execute("SELECT client_id, name, api_key, api_secret FROM clients WHERE client_id=%s and status=1", client_id,)
-        clients = cursor.fetchone()
-        result = place_order_for_client(clients, form_data, user_id)
-        results.append({"client_id": client_id, **result})
-    
-    # return form_data,selected_clients
-    #     result = place_order_for_client(client_id, form_data, user_id)
-    #     results.append({"client_id": client_id, **result})
+        print("Client id", client_id)
 
-    # return jsonify({
-    #     "summary": results,
-    #     "success_count": sum(1 for r in results if r["success"]),
-    #     "failure_count": sum(1 for r in results if not r["success"])
-    # }), 200
+        cursor.execute(
+            "SELECT client_id, name, api_key, api_secret FROM clients WHERE client_id=%s and status=1",
+            (client_id,)
+        )
+        client_row = cursor.fetchone()
+        if not client_row:
+            results.append({"client_id": client_id, "error": "Client not found"})
+            continue
 
+        result = place_order_for_client(client_row, form_data, user_id)
 
-# if __name__ == "__main__":
-#     place_order_bp.run(debug=True)
+        # ✅ Success case: insert into order_details
+        if isinstance(result, dict) and result.get("success"):
+            order = result.get("result", {})
+            cursor.execute(
+                """INSERT INTO order_details 
+                   (id, client_id, user_id, product_id, product_symbol, side, size, order_type, state, average_fill_price, created_at, updated_at) 
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                (
+                    order.get("id"),
+                    client_id,
+                    user_id,
+                    order.get("product_id"),
+                    order.get("product_symbol"),
+                    order.get("side"),
+                    order.get("size"),
+                    order.get("order_type"),
+                    order.get("state"),
+                    order.get("average_fill_price"),
+                    order.get("created_at"),
+                    order.get("updated_at"),
+                )
+            )
+            conn.commit()
+            results.append({"client_id": client_id, "success": True})
+
+        # ❌ Error case: insert into api_log_history
+        else:
+            error_msg = result.get("error", "Unknown error")
+            cursor.execute(
+                """INSERT INTO api_log_history 
+                   (client_id, api_name, error, updated_by, lastupdated) 
+                   VALUES (%s, %s, %s, %s, NOW())""",
+                (client_id, "/v2/orders", error_msg, user_id)
+            )
+            conn.commit()
+            results.append({"client_id": client_id, "success": False, "error": error_msg})
+
+    cursor.close()
+    conn.close()
+
+    return jsonify(results)

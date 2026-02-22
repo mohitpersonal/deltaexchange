@@ -178,7 +178,7 @@ def open_orders_route(user_id, client_id):
                 "client_id": client_id
             })
 
-        response = cursor.execute("SELECT * FROM orders_history WHERE client_id=%s AND status=1", (client_id))
+        response = cursor.execute("SELECT * FROM orders_history WHERE client_id=%s AND status=1 order by updated_at, product_symbol desc", (client_id))
         response = cursor.fetchall()
         print("Response:", response)
         conn.commit()

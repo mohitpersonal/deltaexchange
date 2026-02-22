@@ -117,3 +117,99 @@ def get_positions(user_id, client_id):
         return jsonify(resp_list)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+
+# CLOSE ALL POSITIONS API
+def close_all_positions(api_key, api_secret, user_id):
+    method = "POST"
+    timestamp = str(int(time.time()))  # milliseconds
+    path = "/v2/positions/close_all"
+    url = f"{API_BASE_URL}{path}"
+    payload = {
+        "close_all_portfolio": True,
+        "close_all_isolated": True,
+        "user_id": int(user_id)
+        }
+    
+    print("Payload",payload)
+    # Convert dict to JSON string for signature and request body
+    payload_str = json.dumps(payload, separators=(",", ":"))  # compact JSON
+    signature_data = method + timestamp + path + payload_str
+    signature = generate_signature(api_secret, signature_data)
+
+    req_headers = {
+        "api-key": api_key,
+        "timestamp": timestamp,
+        "signature": signature,
+        "User-Agent": "python-rest-client",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        response = requests.post(url, data=payload_str, headers=req_headers, timeout=(3, 27))
+        print("Response text:", response.text)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        return {"error": str(e)}
+    
+@positionorders_bp.route('/positions/close-position/<int:client_id>', methods=['GET'])
+@token_required
+def close_positions(client_id, user_id):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT client_id, name, api_key, api_secret, user_id FROM clients WHERE client_id=%s AND status=1",
+            (client_id,)
+        )
+        client = cursor.fetchone()
+        if not client:
+            return jsonify({"error": "Client not found"}), 404
+
+        api_key = client["api_key"]
+        api_secret = client["api_secret"]
+        client_id = client["client_id"]
+        user_id = client["user_id"]
+
+        resp = close_all_positions(api_key, api_secret, user_id)
+
+        # If API returned an error dict
+        if isinstance(resp, dict) and resp.get("error"):
+            error_msg = resp["error"]
+
+            log_cursor = conn.cursor()
+            log_cursor.execute(
+                """INSERT INTO api_log_history 
+                   (client_id, api_name, error, updated_by, lastupdated) 
+                   VALUES (%s, %s, %s, %s, NOW())""",
+                (client_id, "/v2/positions/close_all", error_msg, client_id)
+            )
+            conn.commit()
+            log_cursor.close()
+
+            return jsonify({"success": False, "error": error_msg}), 400
+
+        # Success case: no logging, just return success
+        return jsonify({"success": True})
+
+    except Exception as e:
+        if conn:
+            log_cursor = conn.cursor()
+            log_cursor.execute(
+                """INSERT INTO api_log_history 
+                   (client_id, api_name, error, updated_by, lastupdated) 
+                   VALUES (%s, %s, %s, %s, NOW())""",
+                (client_id, "/v2/positions/close_all", str(e), client_id)
+            )
+            conn.commit()
+            log_cursor.close()
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()

@@ -26,13 +26,6 @@ import Header from './Header';
 import { BASE_URL } from '../config';
 import apiClient from "../api/axiosConfig";
 
-// Dummy data for demonstration
-const sampleData = [
-  { id: 1, name: "Order A", status: "Open", amount: 1200 },
-  { id: 2, name: "Order B", status: "Closed", amount: -800 },
-  { id: 3, name: "Order C", status: "Pending", amount: 500 },
-];
-
 function OrdersPositionTable({ data }) {
   const [page, setPage] = useState(0);
   const [rowsPerPage] = useState(10);
@@ -77,13 +70,13 @@ function OrdersPositionTable({ data }) {
       <Table>
         <TableHead>
           <TableRow>
-            <TableCell padding="checkbox">
+            {/* <TableCell padding="checkbox">
               <Checkbox
                 indeterminate={selected.length > 0 && selected.length < sortedPositions.length}
                 checked={sortedPositions.length > 0 && selected.length === sortedPositions.length}
                 onChange={handleSelectAllClick}
               />
-            </TableCell>
+            </TableCell> */}
             {["product_symbol", "entry_price", "size"].map((col) => (
               <TableCell key={col}>
                 <TableSortLabel
@@ -508,7 +501,7 @@ function ClientDetails() {
 
   const [positions, setPositions] = useState([]);
     // Dummy UPNL calculation (sum of amounts)
-  const totalUPNL = sampleData.reduce((acc, curr) => acc + curr.amount, 0);
+  const totalUPNL = "900" //sampleData.reduce((acc, curr) => acc + curr.amount, 0);
 
   const [tabIndex, setTabIndex] = useState(0);
   const [ordersHistory, setOrdersHistory] = useState([]);

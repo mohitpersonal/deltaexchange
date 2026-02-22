@@ -23,6 +23,7 @@ import {
   MenuItem,
   Dialog,DialogTitle,DialogContent,DialogActions
 } from "@mui/material";
+import Header from './Header';
 import Sidebar from './Sidebar';
 import { useNavigate } from "react-router-dom";
 import { BASE_URL } from '../config';
@@ -422,116 +423,111 @@ function Clients() {
     }
   };
 
+return (
+  <Box sx={{ display: "flex", minHeight: "100vh" }}>
+    <Sidebar />
 
-  return (
-    <Box sx={{ display: "flex", minHeight: "100vh" }}>
-      <Sidebar />
-      <Box component="main" sx={{ flexGrow: 1 }}>
-        {/* Header */}
-        <Box
-          sx={{
-            height: "25vh",
-            backgroundColor: "#0e68a475",
-            color: "white",
-            p: 3,
+    {/* Main content area */}
+    <Box component="main" sx={{ flexGrow: 1 }}>
+      {/* Header */}
+      <Header
+        breadcrumbs={[
+          { label: "Home", href: "/clients" },
+          { label: "Clients" }
+        ]}
+        user={{ username: "Admin1" }}
+        onLogout={() => {
+          console.log("Logging out...");
+        }}
+      />
+
+      {/* Action Buttons */}
+      <Box sx={{ display: "flex", gap: 2, mt: 3 }}>
+        <Button
+          variant="contained"
+          sx={{ bgcolor: "#003366", color: "white" }}
+          onClick={handleOpenForm}
+        >
+          Add Client
+        </Button>
+        <ClientForm open={openForm} onClose={handleCloseForm} onSave={handleSave} />
+
+        <Button
+          variant="contained"
+          sx={{ bgcolor: "#006699", color: "white" }}
+          onClick={() => {
+            if (selected.length === 0) {
+              alert("Please select at least one client");
+              return;
+            }
+            const selectedClients = sortedClients
+              .filter((c) => selected.includes(c.client_id))
+              .map((c) => ({ id: c.client_id, name: c.name }));
+            navigate("/place-order", { state: { selectedClients } });
           }}
         >
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Breadcrumbs aria-label="breadcrumb" sx={{ color: "white" }}>
-              <Link underline="hover" color="inherit" href="/">
-                Home
-              </Link>
-              <Typography color="white">Clients</Typography>
-            </Breadcrumbs>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              <Avatar sx={{ mr: 1, bgcolor: "secondary.main" }}>M</Avatar>
-              <Typography variant="body1">Mohit (Admin)</Typography>
-            </Box>
-          </Box>
+          Place Order
+        </Button>
 
-          {/* Action Buttons */}
-          <Box sx={{ display: "flex", gap: 2, mt: 3 }}>
-            <Button
-              variant="contained"
-              sx={{ bgcolor: "#003366", color: "white" }}
-              onClick={handleOpenForm}
-            >
-              Add Client
-            </Button>
-            <ClientForm open={openForm} onClose={handleCloseForm} onSave={handleSave} />
-            <Button 
-              variant="contained" 
-              sx={{ bgcolor: "#006699", color: "white" }} 
-              
-              onClick={() => { 
-                if (selected.length === 0) { alert("Please select at least one client"); return; }
-                
-                const selectedClients = sortedClients.filter(c => selected.includes(c.client_id) ).map(c => ({ id: c.client_id, name: c.name })); 
-                navigate("/place-order", { state: { selectedClients } }); }} 
-            > 
-              Place Order 
-            </Button>
+        <Button variant="contained" sx={{ bgcolor: "#0099cc", color: "white" }} onClick={handleFetchWalletBalances}>
+          Fetch Wallet Balance
+        </Button>
+        
+        {/* Snackbar Alert */}
+        <Snackbar
+          open={errorAlert.open}
+          autoHideDuration={4000}   // disappears after 4 seconds
+          onClose={() => setErrorAlert({ ...errorAlert, open: false })}
+          anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        >
+          <Alert
+            onClose={() => setErrorAlert({ ...errorAlert, open: false })}
+            severity="error"
+            sx={{ width: "100%" }}
+          >
+            {errorAlert.message}
+          </Alert>
+        </Snackbar>
 
-            <Button variant="contained" sx={{ bgcolor: "#0099cc", color: "white" }} onClick={handleFetchWalletBalances}>
-              Fetch Wallet Balance
-            </Button>
-            
-            {/* Snackbar Alert */}
-            <Snackbar
-              open={errorAlert.open}
-              autoHideDuration={4000}   // disappears after 4 seconds
-              onClose={() => setErrorAlert({ ...errorAlert, open: false })}
-              anchorOrigin={{ vertical: "top", horizontal: "center" }}
-            >
-              <Alert
-                onClose={() => setErrorAlert({ ...errorAlert, open: false })}
-                severity="error"
-                sx={{ width: "100%" }}
-              >
-                {errorAlert.message}
-              </Alert>
-            </Snackbar>
+        <Button variant="contained" sx={{ bgcolor: "#cc6600", color: "white" }}>
+          Fetch Positions
+        </Button>
 
-            <Button variant="contained" sx={{ bgcolor: "#cc6600", color: "white" }}>
-              Fetch Positions
-            </Button>
+        <Button variant="contained" sx={{ bgcolor: "#7000cccd", color: "white" }} onClick={handleProductLists}>
+          Update Product Lists
+        </Button>
+        
+          {/* Success Snackbar */}
+        <Snackbar open={successAlert.open} autoHideDuration={4000} onClose={() => setSuccessAlert({ ...successAlert, open: false })}
+          anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        >
+          <Alert onClose={() => setSuccessAlert({ ...successAlert, open: false })}
+            severity="success" // green
+            sx={{ width: "100%" }}
+          >
+            {successAlert.message}
+          </Alert>
+        </Snackbar>
 
-            <Button variant="contained" sx={{ bgcolor: "#7000cccd", color: "white" }} onClick={handleProductLists}>
-              Update Product Lists
-            </Button>
-            
-             {/* Success Snackbar */}
-            <Snackbar open={successAlert.open} autoHideDuration={4000} onClose={() => setSuccessAlert({ ...successAlert, open: false })}
-              anchorOrigin={{ vertical: "top", horizontal: "center" }}
-            >
-              <Alert onClose={() => setSuccessAlert({ ...successAlert, open: false })}
-                severity="success" // green
-                sx={{ width: "100%" }}
-              >
-                {successAlert.message}
-              </Alert>
-            </Snackbar>
+        {/* Error Snackbar */}
+        <Snackbar open={errorAlert.open} autoHideDuration={4000} onClose={() => setErrorAlert({ ...errorAlert, open: false })}
+          anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        >
+          <Alert onClose={() => setErrorAlert({ ...errorAlert, open: false })}
+            severity="error" // red
+            sx={{ width: "100%" }}
+          >
+            {errorAlert.message}
+          </Alert>
+        </Snackbar>
+      </Box>
 
-            {/* Error Snackbar */}
-            <Snackbar open={errorAlert.open} autoHideDuration={4000} onClose={() => setErrorAlert({ ...errorAlert, open: false })}
-              anchorOrigin={{ vertical: "top", horizontal: "center" }}
-            >
-              <Alert onClose={() => setErrorAlert({ ...errorAlert, open: false })}
-                severity="error" // red
-                sx={{ width: "100%" }}
-              >
-                {errorAlert.message}
-              </Alert>
-            </Snackbar>
-          </Box>
-        </Box>
-
-        {/* Content area */}
-        <Box sx={{ p: 4 }}>
-          <Paper>
-            {/* Search + Filters */}
-            <Box display="flex" gap={2} p={2}>
-              <TextField
+      {/* Content area */}
+      <Box sx={{ p: 4 }}>
+        <Paper>
+          {/* Search + Filters */}
+          <Box display="flex" gap={2} p={2}>
+            <TextField
                 label="Search"
                 variant="outlined"
                 size="small"
@@ -569,12 +565,12 @@ function Clients() {
                   </MenuItem>
                 ))}
               </TextField>
-            </Box>
+          </Box>
 
-            {/* Table */}
-            <TableContainer>
-              <Table>
-                <TableHead>
+          {/* Table */}
+          <TableContainer>
+            <Table>
+                              <TableHead>
                   <TableRow>
                     <TableCell padding="checkbox">
                       <Checkbox
@@ -643,28 +639,30 @@ function Clients() {
                       </TableRow>
                     ))}
                 </TableBody>
-              </Table>
-            </TableContainer>
+            </Table>
+          </TableContainer>
 
-            {/* Pagination */}
-            <TablePagination
-              component="div"
-              count={sortedClients.length}
-              page={page}
-              onPageChange={(e, newPage) => setPage(newPage)}
-              rowsPerPage={rowsPerPage}
-              onRowsPerPageChange={(e) => {
-                setRowsPerPage(parseInt(e.target.value, 10));
-                setPage(0);
-              }}
-              rowsPerPageOptions={[3, 5, 10]}
-            />
-          </Paper>
-        </Box>
+          {/* Pagination */}
+          <TablePagination
+            component="div"
+            count={sortedClients.length}
+            page={page}
+            onPageChange={(e, newPage) => setPage(newPage)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(e) => {
+              setRowsPerPage(parseInt(e.target.value, 10));
+              setPage(0);
+            }}
+            rowsPerPageOptions={[3, 5, 10]}
+          />
+        </Paper>
       </Box>
     </Box>
-  );
+  </Box>
+);
+
 }
+
 
 
 

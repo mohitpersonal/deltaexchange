@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 import { useNavigate, useLocation } from "react-router-dom";
 import Sidebar from './Sidebar';
+import Header from './Header';
 import { BASE_URL } from '../config';
 import axios from 'axios';
 import apiClient from "../api/axiosConfig";
@@ -150,29 +151,18 @@ function Placeorder() {
       <Sidebar />
       {/* Main Content */}
       <Box component="main" sx={{ flexGrow: 1 }}>
-        {/* Light blue header */}
-        <Box
-          sx={{
-            height: "15vh",
-            backgroundColor: "#0e68a475", // light blue
-            color: "white",
-            p: 3,
+        {/* Header */}
+        <Header
+          breadcrumbs={[
+            { label: "Home", href: "/clients" },
+            { label: "Clients",href: "/clients" },
+            { label: "Place-Order" }
+          ]}
+          user={{ username: "Admin1" }}
+          onLogout={() => {
+            console.log("Logging out...");
           }}
-        >
-          {/* Overlay content */}
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Breadcrumbs aria-label="breadcrumb" sx={{ color: "white" }}>
-              <Link underline="hover" color="inherit" href="/">
-                Home
-              </Link>
-              <Typography color="white">Placeorder</Typography>
-            </Breadcrumbs>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              <Avatar sx={{ mr: 1, bgcolor: "secondary.main" }}>M</Avatar>
-              <Typography variant="body1">Welcome Admin</Typography>
-            </Box>
-          </Box>
-        </Box>
+        />
         
         {/* Outer wrapper with margin from all sides */}
         <Box
@@ -213,11 +203,16 @@ function Placeorder() {
             {/* Strike Selection + Calls/Puts */}
             <Box display="flex" gap={2}>
               <Autocomplete
-                sx={{ flex: 1 }} 
+                sx={{ flex: 1 }}
                 options={strikeSelections}
-                getOptionLabel={(option) => option.name ?? ""}
-                isOptionEqualToValue={(option, value) => option.name === value.name}
-                value={strikeSelections.find((s) => s.name === formData.strikeselection) || null}
+                getOptionLabel={(option) => option?.name ?? ""}
+                isOptionEqualToValue={(option, value) =>
+                  (option?.name || "") === (value?.name || "")
+                }
+                value={
+                  strikeSelections.find((s) => (s?.name || "") === formData.strikeselection) ||
+                  null
+                }
                 onChange={(event, newValue) => {
                   const nextName = newValue ? newValue.name : "";
                   setFormData((prev) => ({ ...prev, strikeselection: nextName }));
@@ -237,35 +232,28 @@ function Placeorder() {
                   }
                 }}
                 filterOptions={(options, params) => {
-                  const input = params.inputValue.trim();
-                  if (input.length < 2) {
-                    return options; // show all until 2+ chars typed
-                  }
+                  const input = (params.inputValue || "").trim().toLowerCase();
+                  if (input.length < 2) return options;
                   return options.filter((opt) =>
-                    opt.name.toLowerCase().startsWith(input.toLowerCase())
+                    (opt?.name || "").toLowerCase().startsWith(input)
                   );
                 }}
-                renderInput={(params) => <TextField {...params} label="Strike Selection" sx={{ flex: 1 }} />}
+                renderInput={(params) => (
+                  <TextField {...params} label="Strike Selection" sx={{ flex: 1 }} />
+                )}
               />
-              {/* <TextField
-                label="Strike Selection"
-                name="strikeselection"
+
+              <TextField
+                label="Expiry"
+                name="expiry"
                 select
-                value={formData.strikeselection}
+                value={formData.expiry}
                 onChange={handleChange}
                 sx={{ flex: 1 }}
               >
-                {(strikeSelections || []).map((s) => (
-                  <MenuItem key={s.name} value={s.name}>
-                    {s.name}
-                  </MenuItem>
-                ))}
-              </TextField> */}
-
-              <TextField label="Expiry" name="expiry" select value={formData.expiry} onChange={handleChange} sx={{ flex: 1 }} >
                 {(expiry || []).map((e) => (
                   <MenuItem key={e.id} value={e.id}>
-                    {e.name}
+                    {e.name || ""}
                   </MenuItem>
                 ))}
               </TextField>
@@ -277,64 +265,50 @@ function Placeorder() {
                 label="Quantity Type"
                 name="quantitytype"
                 select
-                value={formData.quantitytype}
+                value={formData.quantitytype || ""}
                 onChange={handleChange}
                 sx={{ flex: 1 }}
               >
                 {quantityTypes.map((qt) => (
-                  <MenuItem key={qt.id} value={qt.name.toLowerCase()}>
-                    {qt.name}
+                  <MenuItem key={qt.id} value={(qt.name || "").toLowerCase()}>
+                    {qt.name || ""}
                   </MenuItem>
                 ))}
               </TextField>
 
-                {formData.quantitytype?.toLowerCase() === "absolute" && (
+              {(formData.quantitytype || "").toLowerCase() === "absolute" && (
                 <TextField
                   label="Quantity"
                   name="quantityabs"
                   type="number"
-                  value={formData.quantityabs}
+                  value={formData.quantityabs || ""}
                   onChange={handleChange}
                   sx={{ flex: 1 }}
                   inputProps={{ step: "any" }}
                 />
-                )}
+              )}
 
-                {formData.quantitytype?.toLowerCase() === "percentages" && (
+              {(formData.quantitytype || "").toLowerCase() === "percentages" && (
                 <TextField
                   label="Quantity Percent"
                   name="quantityper"
                   select
-                  value={formData.quantityper}
+                  value={formData.quantityper || ""}
                   onChange={handleChange}
                   sx={{ flex: 1 }}
                 >
                   {percentages.map((p) => (
-                    <MenuItem key={p.id} value={p.name}>
-                      {p.name}%
+                    <MenuItem key={p.id} value={p.name || ""}>
+                      {(p.name || "")}%
                     </MenuItem>
                   ))}
                 </TextField>
-                )}
-            
-              <TextField
-                label="Quantity Lots"
-                name="quantityabs"
-                select
-                value={formData.quantityabs || lots[0]?.name}   // default to first lot id
-                onChange={handleChange}
-                sx={{ flex: 1 }}
-              >
-                {lots.map((lot) => (
-                  <MenuItem key={lot.id} value={lot.id}>
-                    {lot.name}
-                  </MenuItem>
-                ))}
-              </TextField>
+              )}
             </Box>
 
+
             {/* Trigger + StopLoss */}
-            <Box display="flex" gap={2}>
+            {/* <Box display="flex" gap={2}>
               <TextField label="Trigger Price" name="trigprice" value={formData.trigprice} onChange={handleChange} sx={{ flex: 1 }} />
               <TextField label="Trigger Price Limit" name="triglimit" value={formData.triglimit} onChange={handleChange} sx={{ flex: 1 }} />
             </Box>
@@ -342,13 +316,30 @@ function Placeorder() {
             <Box display="flex" gap={2}>
               <TextField label="StopLoss Price" name="slprice" value={formData.slprice} onChange={handleChange} sx={{ flex: 1 }} />
               <TextField label="StopLoss Price Limit" name="slpricelimit" value={formData.slpricelimit} onChange={handleChange} sx={{ flex: 1 }} />
-            </Box>
+            </Box> */}
 
             {/* Order Type */}
-            <RadioGroup row name="ordertype" value={formData.ordertype} onChange={handleChange}>
-              <FormControlLabel value="Buy" control={<Radio />} label="Buy" />
-              <FormControlLabel value="Sell" control={<Radio />} label="Sell" />
-            </RadioGroup>
+            <Box display="flex" gap={2}>
+              <TextField
+                  label="Quantity Lots"
+                  name="quantitylots"
+                  select
+                  value={formData.quantitylots || ""}
+                  onChange={handleChange}
+                  sx={{ flex: 1 }}
+                >
+                  {lots.map((qu) => (
+                    <MenuItem key={qu.id} value={(qu.name || "").toLowerCase()}>
+                      {qu.name || ""}
+                    </MenuItem>
+                  ))}
+                </TextField>
+
+              <RadioGroup row name="ordertype" value={formData.ordertype} onChange={handleChange} sx={{ flex: 1 }}>
+                <FormControlLabel value="Buy" control={<Radio />} label="Buy" />
+                <FormControlLabel value="Sell" control={<Radio />} label="Sell" />
+              </RadioGroup>
+            </Box>
 
             {/* Actions */}
             <Box display="flex" gap={2} justifyContent="center" mt={2}>

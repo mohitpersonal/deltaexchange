@@ -22,6 +22,7 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import Sidebar from './Sidebar';
+import Header from './Header';
 import { BASE_URL } from '../config';
 import apiClient from "../api/axiosConfig";
 
@@ -521,11 +522,24 @@ function ClientDetails() {
     if (tabIndex === 0) {
       apiClient.get(`/positions/${client_id}`)
         .then((res) => {
-          setPositions(res.data.result || []);
+          // res.data is an array like [{ETH: {...}}, {BTC: {...}}]
+          const positions = [];
+
+          res.data.forEach((coinObj) => {
+            const [coin, data] = Object.entries(coinObj)[0]; // e.g. ["ETH", {...}]
+            if (data.result && Array.isArray(data.result)) {
+              data.result.forEach((pos) => {
+                positions.push({ ...pos, coin }); // attach coin symbol
+              });
+            }
+          });
+
+          setPositions(positions);
         })
         .catch((err) => console.error("Error fetching positions:", err));
     }
   }, [client_id, tabIndex]);
+
 
   useEffect(() => {
     if (tabIndex === 1) {
@@ -570,32 +584,18 @@ function ClientDetails() {
       <Sidebar />
       {/* Main Content */}
       <Box component="main" sx={{ flexGrow: 1 }}>
-        {/* Light blue header */}
-        <Box
-          sx={{
-            height: "25vh",
-            backgroundColor: "#0e68a475", // light blue
-            color: "white",
-            p: 3,
-          }}
-        >
-          {/* Overlay content */}
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Breadcrumbs aria-label="breadcrumb" sx={{ color: "white" }}>
-              <Link underline="hover" color="inherit" href="/">
-                Home
-              </Link>
-              <Link underline="hover" color="inherit" href="/clients">
-                Clients
-              </Link>
-              <Typography color="white">Client Details</Typography>
-            </Breadcrumbs>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              <Avatar sx={{ mr: 1, bgcolor: "secondary.main" }}>M</Avatar>
-              <Typography variant="body1">Mohit (Admin)</Typography>
-            </Box>
-          </Box>
-        </Box>
+        <Header
+        breadcrumbs={[
+          { label: "Home", href: "/clients" },
+          { label: "Clients", href: "/clients" },
+          { label: "Client-details"}
+        ]}
+        user={{ username: "Admin1" }}
+        onLogout={() => {
+          // clear tokens, redirect to login, etc.
+          console.log("Logging out...");
+        }}
+      />
 
         {/* Tabs */}
         <Paper sx={{ borderBottom: 1, borderColor: "divider" }}>

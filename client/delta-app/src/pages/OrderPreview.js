@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import axios from "axios";
 import Sidebar from "./Sidebar";
+import Header from './Header';
 import { BASE_URL } from "../config";
 import apiClient from "../api/axiosConfig";
 
@@ -56,34 +57,18 @@ function OrderPreview() {
       {/* Main Content */}
       <Box component="main" sx={{ flexGrow: 1 }}>
         {/* Header */}
-        <Box
-          sx={{
-            height: "15vh",
-            backgroundColor: "#0e68a475",
-            color: "white",
-            p: 3,
+        <Header
+          breadcrumbs={[
+            { label: "Home", href: "/clients" },
+            { label: "Clients",href: "/clients" },
+            { label: "Place-Order", href: "/place-order" },
+            { label: "Order-Preview" }
+          ]}
+          user={{ username: "Admin1" }}
+          onLogout={() => {
+            console.log("Logging out...");
           }}
-        >
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <Breadcrumbs aria-label="breadcrumb" sx={{ color: "white" }}>
-              <Link underline="hover" color="inherit" href="/">
-                Home
-              </Link>
-              <Typography color="white">Placeorder</Typography>
-            </Breadcrumbs>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              <Avatar sx={{ mr: 1, bgcolor: "secondary.main" }}>M</Avatar>
-              <Typography variant="body1">Welcome Admin</Typography>
-            </Box>
-          </Box>
-        </Box>
-
+        />
         <Box sx={{ p: 4 }}>
           <Typography variant="h5" gutterBottom>
             Order Preview
@@ -128,7 +113,7 @@ function OrderPreview() {
                   ? formData.quantityabs
                   : `${formData.quantityper || 0}%`}
               </li>
-              <li>
+              {/* <li>
                 <strong>Trigger Price:</strong> {formData.trigprice || "N/A"}
               </li>
               <li>
@@ -142,7 +127,7 @@ function OrderPreview() {
               </li>
               <li>
                 <strong>StopLoss Limit:</strong> {formData.slpricelimit || "N/A"}
-              </li>
+              </li> */}
             </ul>
           </Paper>
 

@@ -29,7 +29,7 @@ def get_expiries(user_id):
     strike_price = request.args.get("strikeSelections")
     ct = "call_options" if contract_type == "Call" else "put_options"
 
-    rows = fetch_values( "SELECT id, settlement_time AS expired_date " "FROM products_details WHERE strike_price=%s AND contract_type=%s", (strike_price, ct,) ) 
+    rows = fetch_values( "SELECT id, settlement_time AS expired_date " "FROM products_details WHERE strike_price=%s AND contract_type=%s AND settlement_time > NOW() order by settlement_time ASC", (strike_price, ct,) ) 
     #rows = fetch_values( "SELECT id, DATE_FORMAT(settlement_time, '%%Y-%%m-%%d') AS expired_date " "FROM products_details WHERE strike_price=%s AND contract_type=%s", (strike_price, ct,) ) 
     return jsonify(rows)
 
@@ -40,7 +40,7 @@ def get_strike_selections(user_id):
     ct = "call_options" if contract_type == "Call" else "put_options"
 
     return jsonify(fetch_values(
-        "SELECT id, strike_price FROM products_details WHERE contract_type=%s",
+        "SELECT DISTINCT strike_price AS name FROM products_details WHERE contract_type=%s AND settlement_time > NOW() order by strike_price ASC",
         (ct,)
     ))
 

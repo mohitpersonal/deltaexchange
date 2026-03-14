@@ -41,19 +41,15 @@ function Placeorder() {
 
   // ✅ Form state
   const [formData, setFormData] = useState({
-    coinname: "",
+    coinname: "BTC",
     expiry: "",
     strikeselection: "",
-    callsputs: "",
-    quantitytype: "",
+    callsputs: "Call",
+    quantitytype: "absolute",
     quantityabs: "",
     quantityper: "",
-    quantitylots: "",   // separate field for lots
-    trigprice: "",
-    triglimit: "",
-    slprice: "",
-    slpricelimit: "",
-    ordertype: "",
+    quantitylots: "lot",   // separate field for lots
+    ordertype: "Sell",
   });
 
   // ✅ Fetch dropdown values from DB
@@ -64,13 +60,19 @@ function Placeorder() {
       apiClient.get("/place-order/qty-type"),
       apiClient.get("/place-order/qty-percent"),
       apiClient.get("/place-order/qty-unit"),
+      apiClient
+          .get("/place-order/strike-selection", {
+            params: { coin_type: formData.coinname, contract_type: formData.callsputs },
+          })
+
     ])
-      .then(([coinRes, callsRes, qtyTypeRes, qtyPercentRes, qtyUnitRes]) => {
+      .then(([coinRes, callsRes, qtyTypeRes, qtyPercentRes, qtyUnitRes, strikeVal]) => {
         setCoinNames(coinRes.data);
         setCallsPuts(callsRes.data);
         setQuantityTypes(qtyTypeRes.data);
         setPercentages(qtyPercentRes.data);
         setLots(qtyUnitRes.data);
+        setStrikeSelections(strikeVal.data)
       })
       .catch((err) => {
         console.error("Error fetching place-order data:", err);
@@ -81,11 +83,22 @@ function Placeorder() {
       });
   }, []);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+  const handleChange = (eOrName, maybeValue) => {
+    let name, value;
+
+    // Case 1: called from a native input (event)
+    if (eOrName && eOrName.target) {
+      name = eOrName.target.name;
+      value = eOrName.target.value;
+    } 
+    // Case 2: called manually from Autocomplete etc.
+    else {
+      name = eOrName;
+      value = maybeValue;
+    }
 
     setFormData((prev) => {
-      const updated = { ...prev, [name]: value };
+      let updated = { ...prev, [name]: value };
 
       // Handle Quantity Type (Absolute / Percentages from API)
       if (name === "quantitytype") {
@@ -93,11 +106,13 @@ function Placeorder() {
         updated.quantityper = value.toLowerCase() === "percentages" ? prev.quantityper : "";
       }
 
-      // When callsputs changes, fetch strike selections
-      if (name === "callsputs" && updated.callsputs) {
+      // When callsputs or coinname changes → fetch strike selections AND reset expiry
+      if ((name === "callsputs" && updated.callsputs) || (name === "coinname" && updated.coinname)) {
+        updated.expiry = ""; // ensure expiry reset is part of returned state
+
         apiClient
           .get("/place-order/strike-selection", {
-            params: { contract_type: updated.callsputs },
+            params: { coin_type: updated.coinname, contract_type: updated.callsputs },
           })
           .then((res) => setStrikeSelections(res.data))
           .catch((err) => {
@@ -109,8 +124,8 @@ function Placeorder() {
           });
       }
 
-      // When both callsputs and strikeselection are set, fetch expiry
-      if (updated.callsputs && updated.strikeselection) {
+      // When both callsputs and strikeselection are set → fetch expiry
+      if (updated.coinname && updated.callsputs && updated.strikeselection) {
         apiClient
           .get("/place-order/expiry", {
             params: {
@@ -118,7 +133,21 @@ function Placeorder() {
               contract_type: updated.callsputs,
             },
           })
-          .then((res) => setExpiries(res.data))
+          .then((res) => {
+            const expiries = res.data;
+            setExpiries(expiries);
+
+            if (Array.isArray(expiries) && expiries.length > 0) {
+              const firstExpiry = expiries[0];
+              console.log("Expiry API response:", firstExpiry);
+
+              setFormData((prev) => ({
+                ...prev,
+                expiry: String(firstExpiry.id), // default to first expiry id
+                // or use firstExpiry.name if your UI expects the date string
+              }));
+            }
+          })
           .catch((err) => {
             console.error("Error fetching expiry:", err);
             setError({
@@ -128,9 +157,10 @@ function Placeorder() {
           });
       }
 
-      return updated;
+      return updated; // important: expiry reset is included in returned state
     });
   };
+
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -139,11 +169,11 @@ function Placeorder() {
   };
 
   const [selectedClientsLists, setSelectedClientsLists] = useState([]); 
-  const handlePreview = () => { 
-    navigate("/order-preview", { 
-    state: { formData, selectedClients }, // 👈 pass values here 
-    }); 
-  };
+  // const handlePreview = () => { 
+  //   navigate("/order-preview", { 
+  //   state: { formData, selectedClients }, // 👈 pass values here 
+  //   }); 
+  // };
   
 
   return (
@@ -186,17 +216,25 @@ function Placeorder() {
           <Box display="flex" flexDirection="column" gap={3}>
             {/* Coin Name + Expiry */}
             <Box display="flex" gap={2}>
-              <TextField label="Coin Name" name="coinname" select value={formData.coinname} onChange={handleChange} sx={{ flex: 1 }} >
+              {/* <TextField label="Coin Name" name="coinname" select value={formData.coinname} onChange={handleChange} sx={{ flex: 1 }} >
                 {coinNames.map((coin) => (
                   <MenuItem key={coin.id} value={coin.name}>{coin.name}</MenuItem>
                 ))}
-              </TextField>
+              </TextField> */}
+              <RadioGroup row name="coinname" value={formData.coinname} onChange={handleChange} sx={{ flex: 1 }}>
+                <FormControlLabel value="BTC" control={<Radio />} label="BTC" />
+                <FormControlLabel value="ETH" control={<Radio />} label="ETH" />
+              </RadioGroup>
               
-              <TextField label="Calls OR Puts" name="callsputs" select value={formData.callsputs} onChange={handleChange} sx={{ flex: 1 }} >
+              {/* <TextField label="Calls OR Puts" name="callsputs" select value={formData.callsputs} onChange={handleChange} sx={{ flex: 1 }} >
                 {callsPuts.map((cp) => (
                   <MenuItem key={cp.id} value={cp.name}>{cp.name}</MenuItem>
                 ))}
-              </TextField>
+              </TextField> */}
+              <RadioGroup row name="callsputs" value={formData.callsputs} onChange={handleChange} sx={{ flex: 1 }}>
+                <FormControlLabel value="Call" control={<Radio />} label="Call" />
+                <FormControlLabel value="Put" control={<Radio />} label="Put" />
+              </RadioGroup>
               
             </Box>
 
@@ -215,21 +253,7 @@ function Placeorder() {
                 }
                 onChange={(event, newValue) => {
                   const nextName = newValue ? newValue.name : "";
-                  setFormData((prev) => ({ ...prev, strikeselection: nextName }));
-
-                  if (formData.callsputs && newValue) {
-                    apiClient
-                      .get("/place-order/expiry", {
-                        params: {
-                          strikeSelections: newValue.name,
-                          contract_type: formData.callsputs,
-                        },
-                      })
-                      .then((res) => setExpiries(res.data))
-                      .catch((err) =>
-                        setError(err.response?.data?.message || "Failed to fetch expiry")
-                      );
-                  }
+                  handleChange("strikeselection", nextName); // delegate to centralized handler
                 }}
                 filterOptions={(options, params) => {
                   const input = (params.inputValue || "").trim().toLowerCase();
@@ -343,13 +367,45 @@ function Placeorder() {
 
             {/* Actions */}
             <Box display="flex" gap={2} justifyContent="center" mt={2}>
-              <Button
+              {/* <Button
                 variant="contained"
                 color="primary"
                 onClick={handlePreview}
               >
                 Preview Order
-              </Button>
+              </Button> */}
+              <Button
+              variant="contained"
+              color="primary"
+              onClick={() => {
+                const confirmed = window.confirm("Are you sure you want to place this order?");
+                if (confirmed) {
+                  axios.post(
+                    `${BASE_URL}/place-order/placed-order`,
+                    {
+                      formData,
+                      selectedClients
+                    },
+                    {
+                      headers: {
+                        Authorization: `Bearer ${localStorage.getItem("token")}`, // or however you store your token
+                        "Content-Type": "application/json"
+                      }
+                    }
+                  )
+                  .then((res) => {
+                    console.log("Order submitted successfully:", res.data);
+                    // navigate("/orders/success");
+                  })
+                  .catch((err) => {
+                    console.error("Error submitting order:", err);
+                    alert("Failed to submit order. Please try again.");
+                  });
+                }
+              }}
+            >
+              Confirm & Submit
+            </Button>
               <Button variant="outlined" onClick={() => navigate("/clients")}>
                 Back
               </Button>

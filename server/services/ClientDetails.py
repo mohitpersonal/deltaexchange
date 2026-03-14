@@ -16,8 +16,8 @@ def add_client(user_id):
     print("Received:", data)  # Debug log
 
     sql = """
-        INSERT INTO clients (name, mobile_no, email_id, group_id, margin_mode_id, api_key, api_secret)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO clients (name, mobile_no, email_id, group_id, margin_mode_id, api_key, api_secret, user_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
     """
     values = (
         data.get("name"),
@@ -26,7 +26,8 @@ def add_client(user_id):
         data.get("group"),
         data.get("margin"),
         data.get("apiKey"),
-        data.get("apiSecret")
+        data.get("apiSecret"),
+        data.get("userId")
     )
 
     cursor.execute(sql, values)

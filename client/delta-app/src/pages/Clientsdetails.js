@@ -95,12 +95,12 @@ function OrdersPositionTable({ data }) {
             .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
             .map((row) => (
               <TableRow key={row.product_id} selected={isSelected(row.product_id)}>
-                <TableCell padding="checkbox">
+                {/* <TableCell padding="checkbox">
                   <Checkbox
                     checked={isSelected(row.product_id)}
                     onChange={() => handleClick(row.product_id)}
                   />
-                </TableCell>
+                </TableCell> */}
                 <TableCell>{row.product_symbol}</TableCell>
                 <TableCell>{row.entry_price}</TableCell>
                 <TableCell>{row.size}</TableCell>

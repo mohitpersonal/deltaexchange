@@ -36,12 +36,14 @@ def get_expiries(user_id):
 @place_order_bp.route("/place-order/strike-selection", methods=["GET"])
 @token_required
 def get_strike_selections(user_id):
+    coin_type = request.args.get("coin_type")
     contract_type = request.args.get("contract_type")  # CE or PE
     ct = "call_options" if contract_type == "Call" else "put_options"
+    coint = '%'+coin_type+'%'
 
     return jsonify(fetch_values(
-        "SELECT DISTINCT strike_price AS name FROM products_details WHERE contract_type=%s AND settlement_time > NOW() order by strike_price ASC",
-        (ct,)
+        "SELECT DISTINCT strike_price AS name FROM products_details WHERE symbol LIKE %s AND contract_type=%s AND settlement_time > NOW() order by strike_price ASC",
+        (coint,ct,)
     ))
 
 @place_order_bp.route("/place-order/qty-type", methods=["GET"])
@@ -60,23 +62,23 @@ def get_lots(user_id):
     return jsonify(fetch_values("SELECT qty_unit_id, quantity_unit_name FROM quantity_unit where status=1"))
 
 
-@place_order_bp.route("/place-order/order-preview-lists", methods=["GET"])
-@token_required
-def get_order_preview_lists(user_id):
-    product_id = request.args.get("expiry")
+# @place_order_bp.route("/place-order/order-preview-lists", methods=["GET"])
+# @token_required
+# def get_order_preview_lists(user_id):
+#     product_id = request.args.get("expiry")
 
-    if not product_id:
-        return jsonify({"error": "expiry parameter is required"}), 400
+#     if not product_id:
+#         return jsonify({"error": "expiry parameter is required"}), 400
 
-    data = fetch_one_value(
-        "SELECT id, symbol, settlement_time FROM products_details WHERE id=%s",
-        (product_id,)
-    )
+#     data = fetch_one_value(
+#         "SELECT id, symbol, settlement_time FROM products_details WHERE id=%s",
+#         (product_id,)
+#     )
 
-    if not data:
-        return jsonify({"error": "No product found"}), 404
+#     if not data:
+#         return jsonify({"error": "No product found"}), 404
 
-    return jsonify(data)
+#     return jsonify(data)
 
 # PLACE ORDER API    
 def place_order_for_client(clients, form_data, user_id):
@@ -188,66 +190,66 @@ def place_order_successfully(user_id):
     print("Form Data", form_data)
     print("Client details", selected_clients)
 
-    if not form_data or not selected_clients:
-        return jsonify({"error": "Missing formData or selectedClients"}), 400
+    # if not form_data or not selected_clients:
+    #     return jsonify({"error": "Missing formData or selectedClients"}), 400
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    # conn = get_db_connection()
+    # cursor = conn.cursor()
 
-    results = []
-    for client in selected_clients:
-        client_id = client.get("id")
-        print("Client id", client_id)
+    # results = []
+    # for client in selected_clients:
+    #     client_id = client.get("id")
+    #     print("Client id", client_id)
 
-        cursor.execute(
-            "SELECT client_id, name, api_key, api_secret FROM clients WHERE client_id=%s and status=1",
-            (client_id,)
-        )
-        client_row = cursor.fetchone()
-        if not client_row:
-            results.append({"client_id": client_id, "error": "Client not found"})
-            continue
+    #     cursor.execute(
+    #         "SELECT client_id, name, api_key, api_secret FROM clients WHERE client_id=%s and status=1",
+    #         (client_id,)
+    #     )
+    #     client_row = cursor.fetchone()
+    #     if not client_row:
+    #         results.append({"client_id": client_id, "error": "Client not found"})
+    #         continue
 
-        result = place_order_for_client(client_row, form_data, user_id)
+    #     result = place_order_for_client(client_row, form_data, user_id)
 
-        # ✅ Success case: insert into order_details
-        if isinstance(result, dict) and result.get("success"):
-            order = result.get("result", {})
-            cursor.execute(
-                """INSERT INTO order_details 
-                   (id, client_id, user_id, product_id, product_symbol, side, size, order_type, state, average_fill_price, created_at, updated_at) 
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-                (
-                    order.get("id"),
-                    client_id,
-                    user_id,
-                    order.get("product_id"),
-                    order.get("product_symbol"),
-                    order.get("side"),
-                    order.get("size"),
-                    order.get("order_type"),
-                    order.get("state"),
-                    order.get("average_fill_price"),
-                    order.get("created_at"),
-                    order.get("updated_at"),
-                )
-            )
-            conn.commit()
-            results.append({"client_id": client_id, "success": True})
+    #     # ✅ Success case: insert into order_details
+    #     if isinstance(result, dict) and result.get("success"):
+    #         order = result.get("result", {})
+    #         cursor.execute(
+    #             """INSERT INTO order_details 
+    #                (id, client_id, user_id, product_id, product_symbol, side, size, order_type, state, average_fill_price, created_at, updated_at) 
+    #                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+    #             (
+    #                 order.get("id"),
+    #                 client_id,
+    #                 user_id,
+    #                 order.get("product_id"),
+    #                 order.get("product_symbol"),
+    #                 order.get("side"),
+    #                 order.get("size"),
+    #                 order.get("order_type"),
+    #                 order.get("state"),
+    #                 order.get("average_fill_price"),
+    #                 order.get("created_at"),
+    #                 order.get("updated_at"),
+    #             )
+    #         )
+    #         conn.commit()
+    #         results.append({"client_id": client_id, "success": True})
 
-        # ❌ Error case: insert into api_log_history
-        else:
-            error_msg = result.get("error", "Unknown error")
-            cursor.execute(
-                """INSERT INTO api_log_history 
-                   (client_id, api_name, error, updated_by, lastupdated) 
-                   VALUES (%s, %s, %s, %s, NOW())""",
-                (client_id, "/v2/orders", error_msg, user_id)
-            )
-            conn.commit()
-            results.append({"client_id": client_id, "success": False, "error": error_msg})
+    #     # ❌ Error case: insert into api_log_history
+    #     else:
+    #         error_msg = result.get("error", "Unknown error")
+    #         cursor.execute(
+    #             """INSERT INTO api_log_history 
+    #                (client_id, api_name, error, updated_by, lastupdated) 
+    #                VALUES (%s, %s, %s, %s, NOW())""",
+    #             (client_id, "/v2/orders", error_msg, user_id)
+    #         )
+    #         conn.commit()
+    #         results.append({"client_id": client_id, "success": False, "error": error_msg})
 
-    cursor.close()
-    conn.close()
+    # cursor.close()
+    # conn.close()
 
-    return jsonify(results)
+    # return jsonify(results)

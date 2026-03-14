@@ -6,6 +6,7 @@ import PrivateRoute from './routes/PrivateRoute';
 import Login from './pages/Login';
 import Clients from './pages/Clients';
 import Placeorder from './pages/Placeorder';
+import Placebracketorder from './pages/Placebracketorder';
 import OrderPreview from './pages/OrderPreview';
 import Clientsdetails from './pages/Clientsdetails';
 import Dashboard from './pages/Dashboard';
@@ -21,6 +22,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/clients" element={<PrivateRoute> <Clients /> </PrivateRoute>} />
         <Route path="/place-order" element={<PrivateRoute><Placeorder /> </PrivateRoute>} />
+        <Route path="/place-bracket-order" element={<PrivateRoute><Placebracketorder /> </PrivateRoute>} />
         <Route path="/order-preview" element={<PrivateRoute><OrderPreview /> </PrivateRoute>} />
         <Route path="/clients/client-details/:client_id" element={<PrivateRoute><Clientsdetails /></PrivateRoute>} />
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />

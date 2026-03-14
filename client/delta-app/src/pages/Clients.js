@@ -45,7 +45,8 @@ function ClientForm({ open, onClose, onSave, initialValues }) {
           group: "",
           margin: "",
           apiKey: "",
-          apiSecret: ""
+          apiSecret: "",
+          userId: ""
   });
 
   const handleChange = (e) => {
@@ -95,7 +96,8 @@ function ClientForm({ open, onClose, onSave, initialValues }) {
         group: "",
         margin: "",
         apiKey: "",
-        apiSecret: ""
+        apiSecret: "",
+        userId: ""
       });
     } catch (error) {
       console.error("Error adding client:", error);
@@ -153,6 +155,15 @@ function ClientForm({ open, onClose, onSave, initialValues }) {
           label="API Secret"
           name="apiSecret"
           value={formData.apiSecret}
+          onChange={handleChange}
+          fullWidth
+          margin="normal"
+          variant="outlined"
+        />
+        <TextField
+          label="User Id"
+          name="userId"
+          value={formData.userId}
           onChange={handleChange}
           fullWidth
           margin="normal"
@@ -456,10 +467,10 @@ return (
           variant="contained"
           sx={{ bgcolor: "#006699", color: "white" }}
           onClick={() => {
-            if (selected.length === 0) {
-              alert("Please select at least one client");
-              return;
-            }
+            // if (selected.length === 0) {
+            //   alert("Please select at least one client");
+            //   return;
+            // }
             const selectedClients = sortedClients
               .filter((c) => selected.includes(c.client_id))
               .map((c) => ({ id: c.client_id, name: c.name }));

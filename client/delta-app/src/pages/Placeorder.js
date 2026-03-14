@@ -36,6 +36,7 @@ function Placeorder() {
   const [quantityTypes, setQuantityTypes] = useState([]);
   const [percentages, setPercentages] = useState([]);
   const [lots, setLots] = useState([]);
+  const [extraData, setExtraData] = useState([]);
 
   const [error, setError] = useState("");
 
@@ -46,10 +47,10 @@ function Placeorder() {
     strikeselection: "",
     callsputs: "Call",
     quantitytype: "absolute",
-    quantityabs: "",
+    quantityabs: "1",
     quantityper: "",
     quantitylots: "lot",   // separate field for lots
-    ordertype: "Sell",
+    ordertype: "Sell"
   });
 
   // ✅ Fetch dropdown values from DB
@@ -86,13 +87,10 @@ function Placeorder() {
   const handleChange = (eOrName, maybeValue) => {
     let name, value;
 
-    // Case 1: called from a native input (event)
     if (eOrName && eOrName.target) {
       name = eOrName.target.name;
       value = eOrName.target.value;
-    } 
-    // Case 2: called manually from Autocomplete etc.
-    else {
+    } else {
       name = eOrName;
       value = maybeValue;
     }
@@ -100,15 +98,17 @@ function Placeorder() {
     setFormData((prev) => {
       let updated = { ...prev, [name]: value };
 
-      // Handle Quantity Type (Absolute / Percentages from API)
+      // Handle Quantity Type
       if (name === "quantitytype") {
         updated.quantityabs = value.toLowerCase() === "absolute" ? prev.quantityabs : "";
         updated.quantityper = value.toLowerCase() === "percentages" ? prev.quantityper : "";
       }
 
-      // When callsputs or coinname changes → fetch strike selections AND reset expiry
+      // Reset expiry + extraData when coinname or callsputs changes
       if ((name === "callsputs" && updated.callsputs) || (name === "coinname" && updated.coinname)) {
-        updated.expiry = ""; // ensure expiry reset is part of returned state
+        updated.expiry = "";
+        updated.symbol = ""; // reset symbol too
+        setExtraData([]);
 
         apiClient
           .get("/place-order/strike-selection", {
@@ -124,8 +124,12 @@ function Placeorder() {
           });
       }
 
-      // When both callsputs and strikeselection are set → fetch expiry
-      if (updated.coinname && updated.callsputs && updated.strikeselection) {
+      // Fetch expiry list when strike selection, coin, or callsputs changes
+      if (
+        (name === "callsputs" && updated.callsputs) ||
+        (name === "coinname" && updated.coinname) ||
+        (name === "strikeselection" && updated.strikeselection)
+      ) {
         apiClient
           .get("/place-order/expiry", {
             params: {
@@ -138,14 +142,11 @@ function Placeorder() {
             setExpiries(expiries);
 
             if (Array.isArray(expiries) && expiries.length > 0) {
-              const firstExpiry = expiries[0];
-              console.log("Expiry API response:", firstExpiry);
-
-              setFormData((prev) => ({
-                ...prev,
-                expiry: String(firstExpiry.id), // default to first expiry id
-                // or use firstExpiry.name if your UI expects the date string
-              }));
+              // Always set expiry to first when strikeselection changes
+              if (name === "strikeselection") {
+                updated.expiry = String(expiries[0].id);
+                updated.symbol = ""; // reset symbol when expiry changes
+              }
             }
           })
           .catch((err) => {
@@ -157,10 +158,9 @@ function Placeorder() {
           });
       }
 
-      return updated; // important: expiry reset is included in returned state
+      return updated;
     });
   };
-
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -216,6 +216,8 @@ function Placeorder() {
           <Box display="flex" flexDirection="column" gap={3}>
             {/* Coin Name + Expiry */}
             <Box display="flex" gap={2}>
+              {/* <input type="hidden" name="symbol" value={formData.symbol} /> */}
+
               {/* <TextField label="Coin Name" name="coinname" select value={formData.coinname} onChange={handleChange} sx={{ flex: 1 }} >
                 {coinNames.map((coin) => (
                   <MenuItem key={coin.id} value={coin.name}>{coin.name}</MenuItem>

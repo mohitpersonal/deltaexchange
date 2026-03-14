@@ -467,10 +467,10 @@ return (
           variant="contained"
           sx={{ bgcolor: "#006699", color: "white" }}
           onClick={() => {
-            // if (selected.length === 0) {
-            //   alert("Please select at least one client");
-            //   return;
-            // }
+            if (selected.length === 0) {
+              alert("Please select at least one client");
+              return;
+            }
             const selectedClients = sortedClients
               .filter((c) => selected.includes(c.client_id))
               .map((c) => ({ id: c.client_id, name: c.name }));
